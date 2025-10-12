@@ -1,0 +1,65 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: dtitan-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mongo-gui:
+    image: mongo-express
+    container_name: dtitan-mongo-gui
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+      ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017"
+    depends_on:
+      - mongodb
+
+  redis:
+    image: redis:7
+    container_name: dtitan-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  redis-gui:
+    image: rediscommander/redis-commander:latest
+    container_name: dtitan-redis-gui
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis
+
+  # TODO: 
+  # - do we really need this container in dev?
+  # - swagger ui
+  backend:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: dtitan-backend
+    volumes:
+      - ./dTITAN.Backend:/app
+    working_dir: /app
+    command: dotnet watch run --urls=http://0.0.0.0:5000 --no-launch-profile --no-https --restart
+
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_URLS: "http://0.0.0.0:5000"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      DOTNET_WATCH_POLL_INTERVAL: "500" # ms
+      ConnectionStrings__MongoDb: "mongodb://mongodb:27017"
+      ConnectionStrings__Redis: "redis:6379"
+    depends_on:
+      - mongodb
+      - redis
+
+volumes:
+  mongo-data:

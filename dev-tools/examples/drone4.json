@@ -1,0 +1,25 @@
+{
+  "lat": 39.9330,
+  "lng": -8.8935,
+  "homeLocation": {
+    "lat": 39.93321900000001,
+    "lng": -8.892509
+  },
+  "alt": 20,
+  "velX": -1,
+  "velY": 0,
+  "velZ": 0,
+  "batLvl": 70,
+  "batTemperature": 31.0,
+  "hdg": 180,
+  "satCount": 15,
+  "rft": 0,
+  "isTraveling": true,
+  "isFlying": true,
+  "model": "Mavic 2 Enterprise Advanced",
+  "online": true,
+  "isGoingHome": false,
+  "isHomeLocationSet": true,
+  "areMotorsOn": true,
+  "areLightsOn": false
+}
