@@ -47,7 +47,7 @@ services:
     volumes:
       - ./dTITAN.Backend:/app
     working_dir: /app
-    command: dotnet watch run --urls=http://0.0.0.0:5000 --no-launch-profile --no-https --restart
+    command: dotnet watch run --urls=http://0.0.0.0:5000 --no-launch-profile --no-https --quiet
 
     ports:
       - "5000:5000"
