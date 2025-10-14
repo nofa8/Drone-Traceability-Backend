@@ -1,34 +1,80 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace dTITAN.Backend.Models;
 
 public class Location
 {
-    public double Lat { get; set; }
-    public double Lng { get; set; }
+    [JsonPropertyName("lat")]
+    public double Latitude { get; set; }
+
+    [JsonPropertyName("lng")]
+    public double Longitude { get; set; }
 }
 
 public class Drone
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-    public double Lat { get; set; }
-    public double Lng { get; set; }
+    
+    [JsonPropertyName("id")]
+    required public string Id { get; set; }
+
+    [JsonPropertyName("lat")]
+    public double Latitude { get; set; }
+
+    [JsonPropertyName("lng")]
+    public double Longitude { get; set; }
+
+    [JsonPropertyName("homeLocation")]
     public Location HomeLocation { get; set; } = new Location();
-    public double Alt { get; set; }
-    public double VelX { get; set; }
-    public double VelY { get; set; }
-    public double VelZ { get; set; }
-    public int BatLvl { get; set; }
-    public double BatTemperature { get; set; }
-    public double Hdg { get; set; }
-    public int SatCount { get; set; }
-    public int Rft { get; set; }
+
+    [JsonPropertyName("alt")]
+    public double Altitude { get; set; }
+
+    [JsonPropertyName("velX")]
+    public double VelocityX { get; set; }
+
+    [JsonPropertyName("velY")]
+    public double VelocityY { get; set; }
+
+    [JsonPropertyName("velZ")]
+    public double VelocityZ { get; set; }
+
+    [JsonPropertyName("batLvl")]
+    public double BatteryLevel { get; set; }
+
+    [JsonPropertyName("batTemperature")]
+    public double BatteryTemperature { get; set; }
+
+    [JsonPropertyName("hdg")]
+    public double Heading { get; set; }
+
+    [JsonPropertyName("satCount")]
+    public int SatelliteCount { get; set; }
+
+    [JsonPropertyName("rft")]
+    public int RFT { get; set; }
+
+    [JsonPropertyName("isTraveling")]
     public bool IsTraveling { get; set; }
+
+    [JsonPropertyName("isFlying")]
     public bool IsFlying { get; set; }
+
+    [JsonPropertyName("model")]
     public string Model { get; set; } = "";
+
+    [JsonPropertyName("online")]
     public bool Online { get; set; }
+
+    [JsonPropertyName("isGoingHome")]
     public bool IsGoingHome { get; set; }
+
+    [JsonPropertyName("isHomeLocationSet")]
     public bool IsHomeLocationSet { get; set; }
+
+    [JsonPropertyName("areMotorsOn")]
     public bool AreMotorsOn { get; set; }
+
+    [JsonPropertyName("areLightsOn")]
     public bool AreLightsOn { get; set; }
 }

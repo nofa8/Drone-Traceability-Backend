@@ -8,6 +8,14 @@ services:
     volumes:
       - mongo-data:/data/db
 
+  redis:
+    image: redis:7
+    container_name: dtitan-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+# GUIs
   mongo-gui:
     image: mongo-express
     container_name: dtitan-mongo-gui
@@ -20,46 +28,36 @@ services:
       ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017"
     depends_on:
       - mongodb
+  #
+  # redis-gui:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: dtitan-redis-gui
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379
+  #   ports:
+  #     - "8082:8081"
+  #   depends_on:
+  #     - redis
 
-  redis:
-    image: redis:7
-    container_name: dtitan-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-
-  redis-gui:
-    image: rediscommander/redis-commander:latest
-    container_name: dtitan-redis-gui
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    ports:
-      - "8082:8081"
-    depends_on:
-      - redis
-
-  # TODO: 
-  # - do we really need this container in dev?
-  # - swagger ui
-  backend:
-    image: mcr.microsoft.com/dotnet/sdk:9.0
-    container_name: dtitan-backend
-    volumes:
-      - ./dTITAN.Backend:/app
-    working_dir: /app
-    command: dotnet watch run --urls=http://0.0.0.0:5000 --no-launch-profile --no-https --quiet
-
-    ports:
-      - "5000:5000"
-    environment:
-      ASPNETCORE_URLS: "http://0.0.0.0:5000"
-      DOTNET_USE_POLLING_FILE_WATCHER: "1"
-      DOTNET_WATCH_POLL_INTERVAL: "500" # ms
-      ConnectionStrings__MongoDb: "mongodb://mongodb:27017"
-      ConnectionStrings__Redis: "redis:6379"
-    depends_on:
-      - mongodb
-      - redis
+  # XXX: I will take this from here for now, run locally (i changed the defaults to localhost on backend)
+  # backend:
+  #   image: mcr.microsoft.com/dotnet/sdk:9.0
+  #   container_name: dtitan-backend
+  #   volumes:
+  #     - ./dTITAN.Backend:/app
+  #   working_dir: /app
+  #   command: dotnet watch run --urls=http://0.0.0.0:5000 --no-launch-profile --no-https --quiet
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     ASPNETCORE_URLS: "http://0.0.0.0:5000"
+  #     DOTNET_USE_POLLING_FILE_WATCHER: "1"
+  #     DOTNET_WATCH_POLL_INTERVAL: "500" # ms
+  #     ConnectionStrings__MongoDb: "mongodb://mongodb:27017"
+  #     ConnectionStrings__Redis: "redis:6379"
+  #   depends_on:
+  #     - mongodb
+  #     - redis
 
 volumes:
   mongo-data:

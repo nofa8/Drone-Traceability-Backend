@@ -1,24 +1,32 @@
 using dTITAN.Backend.Data;
+using dTITAN.Backend.Middleware;
 using dTITAN.Backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register MongoDbContext and RedisService
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<RedisService>();
-
-// Register DroneService with its interface
+builder.Services.AddHostedService<ExternalWebSocketService>();
 builder.Services.AddScoped<IDroneService, DroneService>();
+
+// Drone history queue and background writer
+builder.Services.AddSingleton<DroneMessageQueue>();
+builder.Services.AddSingleton<QueueingSubscriber>();
+builder.Services.AddHostedService<DroneHistoryBackgroundWriter>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-// builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// app.UseSwagger();
-// app.UseSwaggerUI();
+app.UseWebSockets();
 app.UseHttpsRedirection();
 app.UseAuthorization();
+
+// Rest API
 app.MapControllers();
+
+// WebSocket Middleware 
+app.UseMiddleware<ClientWebSocketMiddleware>();
+
 app.Run();
