@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BASE_URL="http://localhost:8080"
+BASE_URL="http://localhost:8083"
 SERVER_CMD="bun run drone-simulation-server.js"
 SESSION="drone-sim"
 LOG_FILE="/tmp/drone_sim_$(date +'%Y%m%d_%H%M%S').log"
@@ -21,13 +21,25 @@ require jq
 require tmux
 require curl
 
+# ---------------- Colors ----------------
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+MAGENTA="\033[0;35m"
+CYAN="\033[0;36m"
+BOLD="\033[1m"
+RESET="\033[0m"
+
 # ---------------- Logging ----------------
 log() {
-  echo "[$(date +'%H:%M:%S')] $*" >> "$LOG_FILE"
+  echo -e "${CYAN}[$(date +'%H:%M:%S')]${RESET} $*" >> "$LOG_FILE"
 }
 
 show_log() {
-  tail -n 10 "$LOG_FILE"
+  tail -n 10 "$LOG_FILE" | while read line; do
+    echo -e "$line"
+  done
 }
 
 # ---------------- Loading animation ----------------
@@ -42,8 +54,15 @@ loading() {
 
 # ---------------- Drone commands ----------------
 create_drone() {
-  printf "New drone ID: "
-  read id
+  printf "New drone ID (ESC to cancel): "
+  IFS= read -rsn1 id
+  if [[ $id == $'\e' ]]; then
+    echo
+    return
+  fi
+
+  read -r rest
+  id+="$rest"
   [ -z "$id" ] && return
 
   curl -s -X POST "$BASE_URL/drones" \
@@ -60,6 +79,7 @@ create_drone() {
     [ "$ans" = "y" ] && add_ws_pane "$id"
   fi
 }
+
 
 load_drones() {
   loading
@@ -93,8 +113,15 @@ select_drone() {
     i=$((i + 1))
   done
 
-  printf "Select: "
-  read idx
+  printf "Select (ESC to cancel): "
+  IFS= read -rsn1 idx
+  if [[ $idx == $'\e' ]]; then
+    echo
+    return
+  fi
+
+  read -r rest
+  idx+="$rest"
 
   i=1
   for d in $DRONES; do
@@ -108,6 +135,7 @@ select_drone() {
 
   echo "Invalid selection"
 }
+
 
 start_flight() {
   [ -z "$ACTIVE_DRONE" ] && { echo "No active drone"; return; }
@@ -134,25 +162,29 @@ menu_loop() {
   load_drones
   while true; do
     clear
-    echo "=== Drone Simulator Control (multi-drone) ==="
-    echo "---- Recent activity ----"
+    echo -e "${BOLD}${YELLOW}Drone Simulator Control${RESET}"
+    echo
+    echo -e "${YELLOW}Recent activity${RESET}"
     show_log
-    echo "-------------------------"
     echo
-    echo "Active drone: ${ACTIVE_DRONE:-none}"
-    echo "All drones:   ${DRONES:-none}"
+    echo -e "${YELLOW}Drone IDs${RESET}"
+    echo -e "Active: ${GREEN}${ACTIVE_DRONE:-none}${RESET}"
+    echo -e "All:    ${BLUE}${DRONES:-none}${RESET}"
     echo
-    echo "1) Create drone"
-    echo "2) Select active drone"
-    echo "3) Load drones"
-    echo "4) Start flight (active)"
-    echo "5) Finish flight (active)"
-    echo "6) Delete drone (active)"
-    echo "0) Exit"
+    echo -e "${BOLD}1)${RESET} Create drone"
+    echo -e "${BOLD}2)${RESET} Select active drone"
+    echo -e "${BOLD}3)${RESET} Load drones"
+    echo -e "${BOLD}4)${RESET} Start flight (active)"
+    echo -e "${BOLD}5)${RESET} Finish flight (active)"
+    echo -e "${BOLD}6)${RESET} Delete drone (active)"
+    echo -e "${BOLD}0)${RESET} Exit"
     echo
-    echo -n "Choice: "
+    echo -ne "Choice: "
 
-    IFS= read -r -n1 choice
+    IFS= read -rsn1 choice   # -r raw, -s silent (no echo), -n1 one char
+    if [[ $choice == $'\e' ]]; then
+      continue  # Escape pressed, go back to menu
+    fi
     echo
 
     case "$choice" in
@@ -164,16 +196,17 @@ menu_loop() {
       6) delete_drone ;;
       0) exit 0 ;;
       *) 
-        echo "Invalid option"
+        echo -e "${RED}Invalid option${RESET}"
         sleep 1
         ;;
     esac
 
     echo
-    echo "Press any key to continue..."
+    echo -e "Press any key to continue..."
     IFS= read -r -n1
   done
 }
+
 
 # ---------------- WS monitor pane ----------------
 add_ws_pane() {

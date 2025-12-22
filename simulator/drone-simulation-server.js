@@ -2,10 +2,11 @@ import { WebSocketServer } from "ws";
 import http from "http";
 import { parse } from "url";
 
-const PORT = 8080;
+const PORT = 8083;
 
 /**
  * @typedef {Object} Drone
+ * @property {string} id
  * @property {number} lat
  * @property {number} lng
  * @property {Object} homeLocation
@@ -58,6 +59,7 @@ const server = http.createServer((req, res) => {
       if (drones.has(dboidsID)) return end(res, 409, { error: "exists" });
 
       const drone = {
+        id: dboidsID,
         lat: 39.73426,
         lng: -8.82159,
         homeLocation: { lat: 39.73426, lng: -8.82159 },
@@ -72,7 +74,7 @@ const server = http.createServer((req, res) => {
         rft: 1,
         isTraveling: false,
         isFlying: false,
-        model: dboidsID, // Assumed unique
+        model: "Model",
         online: true,
         isGoingHome: false,
         isHomeLocationSet: true,
@@ -89,10 +91,7 @@ const server = http.createServer((req, res) => {
 
   // GET /drones → list all drones
   if (req.method === "GET" && resource === "drones" && !id) {
-    const list = Array.from(drones.entries()).map(([id, drone]) => ({
-      id,
-      ...drone,
-    }));
+    const list = Array.from(drones.values());
     return end(res, 200, list);
   }
 
@@ -155,6 +154,8 @@ wss.on("connection", (ws, req) => {
     return;
   }
 
+  console.log(`[${dboidsID}] New WS connection`);
+
   const drone = drones.get(dboidsID);
 
   ws.send(JSON.stringify(drone));
@@ -164,9 +165,8 @@ wss.on("connection", (ws, req) => {
 
 /**
  * @param {Drone} drone
- * @param {string} id
  */
-function simulate(drone, id) {
+function simulate(drone) {
   if (drone.timer) return;
 
   drone.timer = setInterval(() => {
@@ -208,9 +208,37 @@ function end(res, code, payload) {
 }
 
 /* ---------------- Start ---------------- */
+for (let i = 1; i <= 3; i++) {
+  const drone = {
+    id: String(i),
+    lat: 39.73426,
+    lng: -8.82159,
+    homeLocation: { lat: 39.73426, lng: -8.82159 },
+    alt: 0,
+    velX: 0,
+    velY: 0,
+    velZ: 0,
+    batLvl: 100,
+    batTemperature: 25,
+    hdg: 0,
+    satCount: 10,
+    rft: 1,
+    isTraveling: false,
+    isFlying: false,
+    model: "Model",
+    online: true,
+    isGoingHome: false,
+    isHomeLocationSet: true,
+    areMotorsOn: false,
+    areLightsOn: false,
+  };
+
+  drones.set(String(i), drone);
+  logEvent("Drone created", String(i));
+}
 
 server.listen(PORT, () => {
   console.log(`Simulator running`);
   console.log(`HTTP → http://localhost:${PORT}`);
-  console.log(`WS   → ws://localhost:${PORT}?dboidsID=drone1`);
+  console.log(`WS   → ws://localhost:${PORT}?dboidsID=*`);
 });
