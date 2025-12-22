@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Drone Tracker</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    #controls {
+      padding: 10px;
+      background: #f4f4f4;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid #ccc;
+    }
+    #status.connected { color: green; font-weight: bold; }
+    #status.disconnected { color: red; font-weight: bold; }
+    #map { height: calc(100vh - 240px); }
+    .param-group {
+      display: flex;
+      flex-direction: column;
+      max-width: 100px;
+    }
+    label { font-size: 0.8em; }
+    input[type="text"], input[type="number"] {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="controls">
+    <div class="param-group"><label>WebSocket URL</label><input type="text" id="wsUrl" value="ws://localhost:8080"></div>
+    <div class="param-group"><label>dboidsID</label><input type="text" id="dboidsID" value="1"></div>
+    
+    <div class="param-group"><label>alt</label><input type="number" id="alt" value="0"></div>
+    <div class="param-group"><label>velX</label><input type="number" id="velX" value="0"></div>
+    <div class="param-group"><label>velY</label><input type="number" id="velY" value="0"></div>
+    <div class="param-group"><label>velZ</label><input type="number" id="velZ" value="0"></div>
+    <div class="param-group"><label>batLvl</label><input type="number" id="batLvl" value="100"></div>
+    <div class="param-group"><label>hdg</label><input type="number" id="hdg" value="0"></div>
+    <div class="param-group"><label>satCount</label><input type="number" id="satCount" value="0"></div>
+    <div class="param-group"><label>rft</label><input type="number" id="rft" value="0"></div>
+    <div class="param-group"><label>isTraveling</label><input type="checkbox" id="isTraveling"></div>
+    <div class="param-group"><label>isFlying</label><input type="checkbox" id="isFlying"></div>
+
+    <button onclick="connectSocket()">Connect</button>
+    <button onclick="disconnectSocket()">Disconnect</button>
+    <span id="status" class="disconnected">Disconnected</span>
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([39.73426, -8.82159], 16);  // Centered on ESTG, IPLeiria
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+  
+    let socket = null;
+    let droneMarker = null;
+    let readyToSend = false;
+    let lastSentTime = 0;  // Track the last sent time for throttling
+  
+    map.on('click', function(e) {
+      const { lat, lng } = e.latlng;
+  
+      if (!droneMarker) {
+        droneMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        droneMarker.on("dragend", () => sendDroneData()); // send after drag ends
+        droneMarker.on("drag", throttleSendDroneData);  // Throttle updates while dragging
+      } else {
+        droneMarker.setLatLng([lat, lng]);
+      }
+  
+      sendDroneData();
+    });
+  
+    function getDroneData() {
+      const inputsExist =
+        document.getElementById("alt") &&
+        document.getElementById("velX") &&
+        document.getElementById("velY") &&
+        document.getElementById("velZ");
+  
+      if (!inputsExist || !droneMarker) return null;
+  
+      const position = droneMarker.getLatLng();
+  
+      return {
+        lat: position.lat,
+        lng: position.lng,
+        alt: parseFloat(document.getElementById("alt").value),
+        velX: parseFloat(document.getElementById("velX").value),
+        velY: parseFloat(document.getElementById("velY").value),
+        velZ: parseFloat(document.getElementById("velZ").value),
+        batLvl: parseInt(document.getElementById("batLvl").value),
+        hdg: parseFloat(document.getElementById("hdg").value),
+        satCount: parseInt(document.getElementById("satCount").value),
+        rft: parseInt(document.getElementById("rft").value),
+        isTraveling: document.getElementById("isTraveling").checked,
+        isFlying: document.getElementById("isFlying").checked
+      };
+    }
+  
+    function sendDroneData() {
+      if (socket && socket.readyState === WebSocket.OPEN && readyToSend) {
+        const data = getDroneData();
+        if (data) {
+          socket.send(JSON.stringify(data));
+          console.log("Sent:", data);
+        } else {
+          console.warn("Drone data not ready — skipped sending");
+        }
+      }
+    }
+  
+    function throttleSendDroneData() {
+      const currentTime = Date.now();
+      const timeSinceLastSend = currentTime - lastSentTime;
+  
+      // Send only if 200ms (5 times per second) have passed since the last send
+      if (timeSinceLastSend >= 200) {
+        sendDroneData();
+        lastSentTime = currentTime;  // Update the last sent time
+      }
+    }
+  
+    function connectSocket() {
+      const baseUrl = document.getElementById('wsUrl').value.trim();
+      const dboidsID = document.getElementById('dboidsID').value.trim();
+  
+      if (!baseUrl || !dboidsID) {
+        alert("Please enter both WebSocket URL and dboidsID.");
+        return;
+      }
+  
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      const fullUrl = `${baseUrl}${separator}dboidsID=${encodeURIComponent(dboidsID)}`;
+  
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+  
+      readyToSend = false; // reset
+      socket = new WebSocket(fullUrl);
+  
+      socket.onopen = () => {
+        updateStatus(true);
+        console.log("WebSocket connected to", fullUrl);
+        readyToSend = true;
+        sendDroneData(); // send after confirmed open
+      };
+  
+      socket.onclose = () => {
+        updateStatus(false);
+        readyToSend = false;
+        console.log("WebSocket disconnected");
+      };
+  
+      socket.onerror = (err) => {
+        console.error("WebSocket error:", err);
+        updateStatus(false);
+      };
+    }
+  
+    function disconnectSocket() {
+      if (socket) {
+        socket.close();
+      }
+    }
+  
+    function updateStatus(connected) {
+      const status = document.getElementById("status");
+      status.textContent = connected ? "Connected" : "Disconnected";
+      status.className = connected ? "connected" : "disconnected";
+    }
+  
+    // 🔁 Attach input event listeners to auto-send on change
+    window.addEventListener("DOMContentLoaded", () => {
+      const inputIds = [
+        "alt", "velX", "velY", "velZ", "batLvl", "hdg", "satCount", "rft", "isTraveling", "isFlying"
+      ];
+      inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener("input", sendDroneData);
+          el.addEventListener("change", sendDroneData);
+        }
+      });
+    });
+  </script>
+  
+
+</body>
+</html>

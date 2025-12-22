@@ -4,7 +4,7 @@ namespace dTITAN.Backend.DTO;
 
 public class DroneDto
 {
-    // TODO: How handle this with mongo and redis?
+    // TODO: do we need this class?
     // public string Id { get; set; } = Guid.NewGuid().ToString();
     // public double Lat { get; set; }
     // public double Lng { get; set; }

@@ -4,24 +4,32 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using dTITAN.Backend.Data;
 using dTITAN.Backend.Models;
+using dTITAN.Backend.DTO;
 
 namespace dTITAN.Backend.Services;
 
-public class DroneHistoryBackgroundWriter : BackgroundService
+/// <summary>
+/// Background service that consumes drone messages from the shared
+/// <see cref="DroneMessageQueue"/>, transforms them into MongoDB documents
+/// and writes them to the configured collection in efficient batches.
+/// </summary>
+/// <param name="queue">Queue providing incoming drone messages.</param>
+/// <param name="db">MongoDB context used to obtain the target collection.</param>
+/// <param name="logger">Logger used for diagnostics and error reporting.</param>
+public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContext db, ILogger<DroneHistoryBackgroundWriter> logger) : BackgroundService
 {
-    private readonly DroneMessageQueue _queue;
-    private readonly IMongoCollection<BsonDocument> _col;
-    private readonly int _batchSize;
-    private readonly TimeSpan _maxWait;
+    private readonly DroneMessageQueue _queue = queue;
+    private readonly IMongoCollection<BsonDocument> _col = db.GetCollection<BsonDocument>("drone_history");
+    private readonly int _batchSize = 200;
+    private readonly TimeSpan _maxWait = TimeSpan.FromSeconds(1);
+    private readonly ILogger<DroneHistoryBackgroundWriter> _logger = logger;
 
-    public DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContext db)
-    {
-        _queue = queue;
-        _col = db.GetCollection<BsonDocument>("drone_history");
-        _batchSize = 200;
-        _maxWait = TimeSpan.FromSeconds(1);
-    }
-
+    /// <summary>
+    /// Background execution loop. Reads batches of messages from the queue,
+    /// deserializes payloads into <see cref="dTITAN.Backend.Models.Drone"/>
+    /// instances and inserts them into MongoDB. Retries transient failures.
+    /// </summary>
+    /// <param name="stoppingToken">Token that signals service shutdown.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await foreach (var batch in ReadBatchesAsync(stoppingToken))
@@ -29,11 +37,11 @@ public class DroneHistoryBackgroundWriter : BackgroundService
             if (batch.Count == 0) continue;
 
             var docs = new List<BsonDocument>(batch.Count);
-            foreach (var json in batch)
+            foreach (var droneEnvelope in batch)
             {
                 try
                 {
-                    var drone = System.Text.Json.JsonSerializer.Deserialize<Drone>(json);
+                    var drone = System.Text.Json.JsonSerializer.Deserialize<Drone>(droneEnvelope.Payload);
                     var doc = new BsonDocument
                     {
                         ["droneId"] = drone?.Id ?? ObjectId.GenerateNewId().ToString(),
@@ -48,7 +56,7 @@ public class DroneHistoryBackgroundWriter : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Failed to deserialize drone message for background write: {ex}");
+                    _logger.LogError(ex, "Failed to deserialize drone message for background write");
                 }
             }
 
@@ -64,16 +72,23 @@ public class DroneHistoryBackgroundWriter : BackgroundService
                 }
                 catch (Exception ex) when (attempts++ < 3)
                 {
-                    Console.Error.WriteLine($"Insert batch failed (attempt {attempts}): {ex}. Retrying in 500ms.");
+                    _logger.LogError(ex, "Insert batch failed (attempt {Attempt}). Retrying in 500ms.", attempts);
                     await Task.Delay(500, stoppingToken);
                 }
             }
         }
     }
 
-    private async IAsyncEnumerable<List<string>> ReadBatchesAsync([EnumeratorCancellation] CancellationToken ct)
+    /// <summary>
+    /// Reads messages from the queue and groups them into batches optimized for
+    /// bulk insertion. Batches are returned when either the configured batch size
+    /// is reached or the configured maximum wait time elapses.
+    /// </summary>
+    /// <param name="ct">Cancellation token used to stop iteration.</param>
+    /// <returns>An async-enumerable yielding lists of <see cref="DroneEnvelope"/>.</returns>
+    private async IAsyncEnumerable<List<DroneEnvelope>> ReadBatchesAsync([EnumeratorCancellation] CancellationToken ct)
     {
-        var batch = new List<string>(_batchSize);
+        var batch = new List<DroneEnvelope>(_batchSize);
         var enumerator = _queue.ReadAllAsync(ct).GetAsyncEnumerator(ct);
         try
         {
@@ -95,7 +110,7 @@ public class DroneHistoryBackgroundWriter : BackgroundService
                 }
 
                 yield return batch;
-                batch = new List<string>(_batchSize);
+                batch = new List<DroneEnvelope>(_batchSize);
             }
         }
         finally
