@@ -1,4 +1,15 @@
 services:
+  external-websocket:
+    image: node:20-alpine
+    container_name: websocket-iouv
+    working_dir: /app
+    volumes:
+      - ./Websockets:/app
+    command: sh -c "npm install && node app.js"
+    ports:
+      - "8083:8080"
+    restart: unless-stopped
+
   mongodb:
     image: mongo:7
     container_name: dtitan-mongodb
@@ -8,36 +19,13 @@ services:
     volumes:
       - mongo-data:/data/db
 
-  redis:
-    image: redis:7
-    container_name: dtitan-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-
-# GUIs
-  mongo-gui:
-    image: mongo-express
-    container_name: dtitan-mongo-gui
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_SERVER: mongodb
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: admin
-      ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017"
-    depends_on:
-      - mongodb
-  #
-  # redis-gui:
-  #   image: rediscommander/redis-commander:latest
-  #   container_name: dtitan-redis-gui
-  #   environment:
-  #     - REDIS_HOSTS=local:redis:6379
+  # XXX: Not being used for now
+  # redis:
+  #   image: redis:7
+  #   container_name: dtitan-redis
+  #   restart: unless-stopped
   #   ports:
-  #     - "8082:8081"
-  #   depends_on:
-  #     - redis
+  #     - "6379:6379"
 
   # XXX: I will take this from here for now, run locally (i changed the defaults to localhost on backend)
   # backend:
@@ -57,6 +45,31 @@ services:
   #     ConnectionStrings__Redis: "redis:6379"
   #   depends_on:
   #     - mongodb
+  #     - redis
+
+  # GUIs
+  mongo-gui:
+    image: mongo-express
+    container_name: dtitan-mongo-gui
+    ports:
+      - "8090:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+      ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017"
+    depends_on:
+      - mongodb
+
+  # XXX: Not being used for now
+  # redis-gui:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: dtitan-redis-gui
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379
+  #   ports:
+  #     - "8082:8081"
+  #   depends_on:
   #     - redis
 
 volumes:
