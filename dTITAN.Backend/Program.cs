@@ -1,15 +1,13 @@
 using dTITAN.Backend.Data;
-using dTITAN.Backend.Middleware;
+using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Services;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ----------------------
-// Serilog configuration
-// ----------------------
+// Logging
 Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration) // reads Serilog section from appsettings.json
+    .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .Enrich.WithMachineName()
     .Enrich.WithThreadId()
@@ -21,34 +19,31 @@ Log.Logger = new LoggerConfiguration()
 builder.Logging.ClearProviders();
 builder.Host.UseSerilog();
 
-// ----------------------
-// Register services
-// ----------------------
+// Singleton services
 builder.Services.AddSingleton<MongoDbContext>();
-builder.Services.AddSingleton<RedisService>();
+builder.Services.AddSingleton<IDroneEventBus, InMemoryDroneEventBus>();
 
-builder.Services.AddSingleton<DroneMessageQueue>();
-
+// Hosted services
 builder.Services.AddHostedService<WebSocketService>();
 builder.Services.AddHostedService<DroneHistoryBackgroundWriter>();
 
+// Domain / optional services
 builder.Services.AddScoped<IDroneService, DroneService>();
 
+// Controllers / Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
-// ----------------------
-// Configure middleware
-// ----------------------
-app.UseWebSockets();
+// Middleware
 app.UseHttpsRedirection();
 app.UseAuthorization();
 
-// Rest API
+// REST API
 app.MapControllers();
 
+// Run
 try
 {
     Log.Information("Starting dTITAN Backend");

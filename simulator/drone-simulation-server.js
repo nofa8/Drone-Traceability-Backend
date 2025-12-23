@@ -91,7 +91,7 @@ const server = http.createServer((req, res) => {
 
   // GET /drones → list all drones
   if (req.method === "GET" && resource === "drones" && !id) {
-    const list = Array.from(drones.values());
+    const list = Array.from(drones.keys());
     return end(res, 200, list);
   }
 
