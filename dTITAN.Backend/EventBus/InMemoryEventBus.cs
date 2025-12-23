@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
-using dTITAN.Backend.Events;
-using Microsoft.Extensions.Logging;
+using dTITAN.Backend.Data.Events;
 
 namespace dTITAN.Backend.EventBus;
 

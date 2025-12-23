@@ -1,14 +1,14 @@
 using MongoDB.Driver;
-using dTITAN.Backend.Models;
 using dTITAN.Backend.Data;
+using dTITAN.Backend.Data.DTO;
 
-namespace dTITAN.Backend.Services;
+namespace dTITAN.Backend.Services.Domain;
 
 public interface IDroneService
 {
-    Task<Drone> AddDroneAsync(Drone drone);
+    Task<DroneTelemetry> AddDroneAsync(DroneTelemetry drone);
 
-    Task<Drone?> GetDroneAsync(string id);
+    Task<DroneTelemetry?> GetDroneAsync(string id);
 
     Task<List<string>> GetAllDronesAsync();
 }
@@ -16,9 +16,9 @@ public interface IDroneService
 public class DroneService(MongoDbContext mongoContext, ILogger<DroneService> logger) : IDroneService
 {
     private readonly ILogger<DroneService> _logger = logger;
-    private IMongoCollection<Drone> Drones => mongoContext.GetCollection<Drone>("Drones");
+    private IMongoCollection<DroneTelemetry> Drones => mongoContext.GetCollection<DroneTelemetry>("Drones");
 
-    public async Task<Drone> AddDroneAsync(Drone drone)
+    public async Task<DroneTelemetry> AddDroneAsync(DroneTelemetry drone)
     {
         _logger.LogInformation("Adding drone {DroneId}", drone.Id);
         await Drones.InsertOneAsync(drone);
@@ -26,7 +26,7 @@ public class DroneService(MongoDbContext mongoContext, ILogger<DroneService> log
         return drone;
     }
 
-    public async Task<Drone?> GetDroneAsync(string id)
+    public async Task<DroneTelemetry?> GetDroneAsync(string id)
     {
         _logger.LogDebug("Getting drone {DroneId}", id);
         var droneDb = await Drones.Find(d => d.Id == id).FirstOrDefaultAsync();

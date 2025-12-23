@@ -1,7 +1,6 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using dTITAN.Backend.Services;
-using dTITAN.Backend.Models;
+using dTITAN.Backend.Services.Domain;
+using dTITAN.Backend.Data.DTO;
 
 namespace dTITAN.Backend.Controllers;
 
@@ -17,7 +16,7 @@ public class DronesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddDrone([FromBody] Drone drone)
+    public async Task<IActionResult> AddDrone([FromBody] DroneTelemetry drone)
     {
         var createdDrone = await _droneService.AddDroneAsync(drone);
         return Ok(new { createdDrone.Id });

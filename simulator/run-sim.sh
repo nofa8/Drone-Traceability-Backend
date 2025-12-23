@@ -1,8 +1,7 @@
 #!/bin/sh
 
-BASE_URL="http://localhost:8083"
-SERVER_CMD="bun run drone-simulation-server.js"
-SESSION="drone-sim"
+SESSION="dTITAN"
+WEBSOCKETS_URL="http://localhost:8083"
 LOG_FILE="/tmp/drone_sim_$(date +'%Y%m%d_%H%M%S').log"
 
 ACTIVE_DRONE=""
@@ -65,7 +64,7 @@ create_drone() {
   id+="$rest"
   [ -z "$id" ] && return
 
-  curl -s -X POST "$BASE_URL/drones" \
+  curl -s -X POST "$WEBSOCKETS_URL/drones" \
     -H "Content-Type: application/json" \
     -d "{\"dboidsID\":\"$id\"}" | jq .
 
@@ -73,16 +72,19 @@ create_drone() {
   ACTIVE_DRONE="$id"
   log "Created drone $id"
 
+  # Optional: open a WebSocket monitor in a new tmux pane
   if command -v websocat >/dev/null 2>&1; then
     printf "Open WS monitor pane for %s? [y/N] " "$id"
     read ans
-    [ "$ans" = "y" ] && add_ws_pane "$id"
+    if [[ "$ans" == [yY] ]]; then
+      add_ws_pane "$id"
+    fi
   fi
 }
 
 load_drones() {
   loading
-  json=$(curl -s "$BASE_URL/drones")
+  json=$(curl -s "$WEBSOCKETS_URL/drones")
   ids=$(echo "$json" | jq -r '.[] | if type=="object" then (.id // empty) else . end' 2>/dev/null)
   DRONES=$(echo "$ids" | tr '\n' ' ')
 
@@ -139,19 +141,19 @@ select_drone() {
 
 start_flight() {
   [ -z "$ACTIVE_DRONE" ] && { echo "No active drone"; return; }
-  curl -s -X POST "$BASE_URL/drones/$ACTIVE_DRONE/start" | jq .
+  curl -s -X POST "$WEBSOCKETS_URL/drones/$ACTIVE_DRONE/start" | jq .
   log "Started flight for $ACTIVE_DRONE"
 }
 
 finish_flight() {
   [ -z "$ACTIVE_DRONE" ] && { echo "No active drone"; return; }
-  curl -s -X POST "$BASE_URL/drones/$ACTIVE_DRONE/finish" | jq .
+  curl -s -X POST "$WEBSOCKETS_URL/drones/$ACTIVE_DRONE/finish" | jq .
   log "Finished flight for $ACTIVE_DRONE"
 }
 
 delete_drone() {
   [ -z "$ACTIVE_DRONE" ] && { echo "No active drone"; return; }
-  curl -s -X DELETE "$BASE_URL/drones/$ACTIVE_DRONE" -w "\nHTTP %{http_code}\n"
+  curl -s -X DELETE "$WEBSOCKETS_URL/drones/$ACTIVE_DRONE" -w "\nHTTP %{http_code}\n"
   log "Deleted drone $ACTIVE_DRONE"
   DRONES=$(echo "$DRONES" | sed "s/\b$ACTIVE_DRONE\b//g")
   ACTIVE_DRONE=""
@@ -210,34 +212,29 @@ menu_loop() {
 
 # ---------------- WS monitor pane ----------------
 add_ws_pane() {
-  id="$1"
-  left_pane=$(tmux list-panes -t "$SESSION" -F "#{pane_id}" | head -n1)
-  new_pane=$(tmux split-window -v -P -F "#{pane_id}" -t "$left_pane")
-  tmux send-keys -t "$new_pane" "websocat ws://localhost:8080?dboidsID=$id | jq ." C-m
+  local id="$1"
+
+  # Check for websocat
+  command -v websocat >/dev/null 2>&1 || { echo "websocat not installed"; return; }
+
+  # Ensure tmux session exists
+  tmux has-session -t "$SESSION" 2>/dev/null || { echo "Tmux session $SESSION not found"; return; }
+
+  # Pick a target pane: current active pane
+  local target_pane
+  target_pane=$(tmux display-message -p "#{pane_id}")
+
+  # Split vertically
+  local new_pane
+  new_pane=$(tmux split-window -v -P -F "#{pane_id}" -t "$target_pane")
+
+  # Use WEBSOCKETS_URL for WebSocket (adjust port if needed)
+  local ws_url="${WEBSOCKETS_URL/http:/ws:}/?dboidsID=$id"
+
+  tmux send-keys -t "$new_pane" "websocat $ws_url | jq ." C-m
+  echo "Opened WebSocket monitor for drone $id in new pane $new_pane"
 }
 
-# ---------------- tmux setup ----------------
-start_tmux() {
-  if tmux has-session -t "$SESSION" 2>/dev/null; then
-    tmux attach -t "$SESSION"
-    exit 0
-  fi
-
-  tmux new-session -d -s "$SESSION"
-  sleep 0.2
-  left_pane=$(tmux list-panes -t "$SESSION" -F "#{pane_id}" | head -n1)
-  tmux send-keys -t "$left_pane" "sh $0 --inside-tmux" C-m
-
-  right_pane=$(tmux split-window -h -P -t "$SESSION")
-  tmux send-keys -t "$right_pane" "$SERVER_CMD" C-m
-
-  tmux select-pane -t "$left_pane"
-  tmux attach -t "$SESSION"
-}
 
 # ---------------- Entry point ----------------
-if [ "$1" = "--inside-tmux" ]; then
-  menu_loop
-else
-  start_tmux
-fi
+menu_loop

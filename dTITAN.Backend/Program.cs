@@ -1,6 +1,9 @@
 using dTITAN.Backend.Data;
 using dTITAN.Backend.EventBus;
-using dTITAN.Backend.Services;
+using dTITAN.Backend.Services.Domain;
+using dTITAN.Backend.Services.Ingestion;
+using dTITAN.Backend.Services.Persistence;
+using dTITAN.Backend.Data.Documents;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,9 +26,13 @@ builder.Host.UseSerilog();
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<IDroneEventBus, InMemoryDroneEventBus>();
 
+// Persistence writers (constructor-injected; they resolve collections from MongoDbContext and subscribe on construction)
+builder.Services.AddSingleton<DroneTelemetryWriter>();
+builder.Services.AddSingleton<DroneRegistryWriter>();
+builder.Services.AddSingleton<DroneSnapshotWriter>();
+
 // Hosted services
 builder.Services.AddHostedService<WebSocketService>();
-builder.Services.AddHostedService<DroneHistoryBackgroundWriter>();
 
 // Domain / optional services
 builder.Services.AddScoped<IDroneService, DroneService>();
@@ -35,6 +42,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
+
+// Ensure persistence writers are constructed so they subscribe to events
+app.Services.GetRequiredService<DroneTelemetryWriter>();
+app.Services.GetRequiredService<DroneRegistryWriter>();
+app.Services.GetRequiredService<DroneSnapshotWriter>();
 
 // Middleware
 app.UseHttpsRedirection();

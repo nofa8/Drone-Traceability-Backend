@@ -1,7 +1,6 @@
-using System;
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Models;
+namespace dTITAN.Backend.Data.DTO;
 
 public class Location
 {
@@ -12,20 +11,24 @@ public class Location
     public double Longitude { get; set; }
 }
 
-public class Drone
+public class DroneTelemetry
 {
-    
+    // Drone Metadata
     [JsonPropertyName("id")]
     required public string Id { get; set; }
 
+    [JsonPropertyName("model")]
+    public string Model { get; set; } = "";
+
+    [JsonPropertyName("homeLocation")]
+    public Location HomeLocation { get; set; } = new Location();
+
+    // Drone State
     [JsonPropertyName("lat")]
     public double Latitude { get; set; }
 
     [JsonPropertyName("lng")]
     public double Longitude { get; set; }
-
-    [JsonPropertyName("homeLocation")]
-    public Location HomeLocation { get; set; } = new Location();
 
     [JsonPropertyName("alt")]
     public double Altitude { get; set; }
@@ -52,16 +55,13 @@ public class Drone
     public int SatelliteCount { get; set; }
 
     [JsonPropertyName("rft")]
-    public int RFT { get; set; }
+    public int RemainingFlightTime { get; set; }
 
     [JsonPropertyName("isTraveling")]
     public bool IsTraveling { get; set; }
 
     [JsonPropertyName("isFlying")]
     public bool IsFlying { get; set; }
-
-    [JsonPropertyName("model")]
-    public string Model { get; set; } = "";
 
     [JsonPropertyName("online")]
     public bool Online { get; set; }

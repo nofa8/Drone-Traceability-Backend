@@ -1,4 +1,4 @@
-using dTITAN.Backend.Events;
+using dTITAN.Backend.Data.Events;
 
 namespace dTITAN.Backend.EventBus;
 
