@@ -1,0 +1,15 @@
+{
+  "name": "ws-iouv",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "keywords": [],
+  "author": "",
+  "dependencies": {
+    "@types/express": "^4.17.17",
+    "express": "^4.18.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.3",
+    "ws": "^8.13.0"
+  }
+}
