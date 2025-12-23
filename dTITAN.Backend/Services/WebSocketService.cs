@@ -4,26 +4,12 @@ using Microsoft.Extensions.Logging;
 
 namespace dTITAN.Backend.Services;
 
-/// <summary>
-/// Background service that initializes the <see cref="DroneConnectionManager"/>
-/// and starts connections for all configured drones. The service reads drone
-/// identifiers and launches the manager which runs per-drone connection tasks.
-/// </summary>
 public class WebSocketService : BackgroundService
 {
     private readonly DroneConnectionManager _manager;
     private readonly ILogger<WebSocketService> _logger;
     private readonly string? _connectionString;
 
-    /// <summary>
-    /// Constructs the <see cref="WebSocketService"/>, validating configuration
-    /// and preparing the <see cref="DroneConnectionManager"/> instance.
-    /// </summary>
-    /// <param name="config">Application configuration used to locate the WebSocket URI.</param>
-    /// <param name="queue">Shared message queue for incoming drone messages.</param>
-    /// <param name="loggerFactory">Factory to create per-connection loggers.</param>
-    /// <param name="logger">Logger for this service.</param>
-    /// <exception cref="InvalidOperationException">Thrown when the DroneWS connection string is not configured.</exception>
     public WebSocketService(
         IConfiguration config,
         IDroneEventBus eventBus,

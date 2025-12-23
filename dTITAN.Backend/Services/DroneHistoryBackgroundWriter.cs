@@ -11,14 +11,6 @@ using dTITAN.Backend.Events;
 
 namespace dTITAN.Backend.Services;
 
-/// <summary>
-/// Background service that consumes drone messages from the shared
-/// <see cref="DroneMessageQueue"/>, transforms them into MongoDB documents
-/// and writes them to the configured collection in efficient batches.
-/// </summary>
-/// <param name="queue">Queue providing incoming drone messages.</param>
-/// <param name="db">MongoDB context used to obtain the target collection.</param>
-/// <param name="logger">Logger used for diagnostics and error reporting.</param>
 public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContext db, ILogger<DroneHistoryBackgroundWriter> logger) : BackgroundService
 {
     private readonly IDroneEventBus _eventBus = eventBus;
@@ -28,12 +20,6 @@ public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContex
     private readonly ILogger<DroneHistoryBackgroundWriter> _logger = logger;
     private readonly Channel<Drone> _channel = Channel.CreateUnbounded<Drone>();
 
-    /// <summary>
-    /// Background execution loop. Reads batches of messages from the queue,
-    /// deserializes payloads into <see cref="dTITAN.Backend.Models.Drone"/>
-    /// instances and inserts them into MongoDB. Retries transient failures.
-    /// </summary>
-    /// <param name="stoppingToken">Token that signals service shutdown.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("DroneHistoryBackgroundWriter started");
