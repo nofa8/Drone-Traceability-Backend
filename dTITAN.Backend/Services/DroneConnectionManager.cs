@@ -2,14 +2,6 @@ using dTITAN.Backend.EventBus;
 
 namespace dTITAN.Backend.Services;
 
-
-/// Supervises connection instances for multiple drones and starts their
-/// background tasks. This component is responsible for creating per-drone
-/// <see cref="DroneConnection"/> instances and running them concurrently.
-/// </summary>
-/// <param name="baseUri">Base WebSocket URI for connecting to drones.</param>
-/// <param name="queue">Shared message queue used by connections to publish messages.</param>
-/// <param name="loggerFactory">Factory used to create loggers for individual connections.</param>
 public sealed class DroneConnectionManager(
     Uri baseUri,
     IDroneEventBus eventBus,

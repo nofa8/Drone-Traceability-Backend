@@ -10,9 +10,7 @@ public class InMemoryDroneEventBus(ILogger<InMemoryDroneEventBus> logger) : IDro
     private readonly ILogger<InMemoryDroneEventBus> _logger = logger;
     private readonly ConcurrentDictionary<Type, ConcurrentBag<Func<IDroneEvent, Task>>> _handlers = new();
 
-    /// <summary>
-    /// Wrap handler invocation to catch exceptions
-    /// </summary>
+
     private async Task SafeInvokeAsync(Func<IDroneEvent, Task> handler, IDroneEvent evt)
     {
         try { await handler(evt); }
@@ -34,7 +32,7 @@ public class InMemoryDroneEventBus(ILogger<InMemoryDroneEventBus> logger) : IDro
         _logger?.LogDebug("Publishing event {EventType} to {HandlerCount} handlers", type.Name, handlersSnapshot.Length);
         foreach (var handler in handlersSnapshot)
         {
-            // Fire-and-forget
+            // XXX: Fire-and-forget, handlers are expected to handle their own errors
             _ = SafeInvokeAsync(handler, droneEvent);
         }
     }
