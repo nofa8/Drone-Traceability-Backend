@@ -62,7 +62,10 @@ public class WebSocketService : BackgroundService
             builder.Path = "/drones";
 
             var httpUri = builder.Uri;
-            using var http = new HttpClient();
+            using var http = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(30)
+            };
             using var res = await http.GetAsync(httpUri, ct);
 
             if (!res.IsSuccessStatusCode)
