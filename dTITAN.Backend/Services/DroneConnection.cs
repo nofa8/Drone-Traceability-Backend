@@ -34,11 +34,13 @@ public sealed class DroneConnection(
                 await ws.ConnectAsync(uri, ct);
                 attempt = 0;
                 _logger.LogInformation("Drone \"{DroneId}\" connected", _droneId);
+                    _eventBus.Publish(new DroneConnected(_droneId));
 
                 await ReceiveLoopAsync(ws, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                _eventBus.Publish(new DroneDisconnected(_droneId));
                 break;
             }
             catch (Exception ex)
@@ -51,6 +53,8 @@ public sealed class DroneConnection(
 
                 _logger.LogWarning("[{DroneId}] Connection error: {Error}. Attempt {Attempt}. Reconnecting in {Delay}ms.",
                     _droneId, shortError, attempt, delay);
+
+                _eventBus.Publish(new DroneDisconnected(_droneId));
 
                 // Preserve full exception details at Debug level (no stack trace in main logs).
                 _logger.LogDebug(ex, "Full exception for drone {DroneId} on connect attempt {Attempt}", _droneId, attempt);
@@ -75,7 +79,10 @@ public sealed class DroneConnection(
                 result = await ws.ReceiveAsync(segment, ct);
 
                 if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    _eventBus.Publish(new DroneDisconnected(_droneId));
                     return;
+                }
 
                 ms.Write(segment.Array!, segment.Offset, result.Count);
             }
