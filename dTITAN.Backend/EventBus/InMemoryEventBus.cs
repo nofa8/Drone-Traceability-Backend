@@ -18,7 +18,7 @@ public class InMemoryDroneEventBus(ILogger<InMemoryDroneEventBus> logger) : IDro
         try { await handler(evt); }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Handler error processing event {EventType}", evt?.GetType());
+            _logger?.LogError(ex, "Handler error processing event {EventType}", evt?.GetType()?.Name);
         }
     }
     public void Publish(IDroneEvent droneEvent)
@@ -26,12 +26,12 @@ public class InMemoryDroneEventBus(ILogger<InMemoryDroneEventBus> logger) : IDro
         var type = droneEvent.GetType();
         if (!_handlers.TryGetValue(type, out var handlers))
         {
-            _logger?.LogDebug("Publishing event {EventType} but no handlers registered", type);
+            _logger?.LogDebug("Publishing event {EventType} but no handlers registered", type.Name);
             return;
         }
 
         var handlersSnapshot = handlers.ToArray();
-        _logger?.LogDebug("Publishing event {EventType} to {HandlerCount} handlers", type, handlersSnapshot.Length);
+        _logger?.LogDebug("Publishing event {EventType} to {HandlerCount} handlers", type.Name, handlersSnapshot.Length);
         foreach (var handler in handlersSnapshot)
         {
             // Fire-and-forget
@@ -45,7 +45,7 @@ public class InMemoryDroneEventBus(ILogger<InMemoryDroneEventBus> logger) : IDro
         Task wrapper(IDroneEvent e) => handler((TEvent)e);
         var bag = _handlers.GetOrAdd(type, _ => []);
         bag.Add(wrapper);
-        _logger?.LogDebug("Subscribed handler for event {EventType}. Total handlers: {Count}", type, bag.Count);
+        _logger?.LogDebug("Subscribed handler for event {EventType}. Total handlers: {Count}", type.Name, bag.Count);
     }
 
     public void Unsubscribe<TEvent>(Func<TEvent, Task> handler) where TEvent : IDroneEvent
