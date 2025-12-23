@@ -85,13 +85,6 @@ public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContex
         _logger.LogInformation("DroneHistoryBackgroundWriter stopping");
     }
 
-    /// <summary>
-    /// Reads messages from the queue and groups them into batches optimized for
-    /// bulk insertion. Batches are returned when either the configured batch size
-    /// is reached or the configured maximum wait time elapses.
-    /// </summary>
-    /// <param name="ct">Cancellation token used to stop iteration.</param>
-    /// <returns>An async-enumerable yielding lists of <see cref="DroneEnvelope"/>.</returns>
     private async IAsyncEnumerable<List<Drone>> ReadBatchesAsync([EnumeratorCancellation] CancellationToken ct)
     {
         var batch = new List<Drone>(_batchSize);
