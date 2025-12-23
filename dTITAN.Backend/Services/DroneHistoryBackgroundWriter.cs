@@ -2,9 +2,12 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using System.Threading.Channels;
 using dTITAN.Backend.Data;
 using dTITAN.Backend.Models;
 using dTITAN.Backend.DTO;
+using dTITAN.Backend.EventBus;
+using dTITAN.Backend.Events;
 
 namespace dTITAN.Backend.Services;
 
@@ -16,13 +19,14 @@ namespace dTITAN.Backend.Services;
 /// <param name="queue">Queue providing incoming drone messages.</param>
 /// <param name="db">MongoDB context used to obtain the target collection.</param>
 /// <param name="logger">Logger used for diagnostics and error reporting.</param>
-public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContext db, ILogger<DroneHistoryBackgroundWriter> logger) : BackgroundService
+public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContext db, ILogger<DroneHistoryBackgroundWriter> logger) : BackgroundService
 {
-    private readonly DroneMessageQueue _queue = queue;
+    private readonly IDroneEventBus _eventBus = eventBus;
     private readonly IMongoCollection<BsonDocument> _col = db.GetCollection<BsonDocument>("drone_history");
     private readonly int _batchSize = 200;
     private readonly TimeSpan _maxWait = TimeSpan.FromSeconds(1);
     private readonly ILogger<DroneHistoryBackgroundWriter> _logger = logger;
+    private readonly Channel<Drone> _channel = Channel.CreateUnbounded<Drone>();
 
     /// <summary>
     /// Background execution loop. Reads batches of messages from the queue,
@@ -32,16 +36,29 @@ public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContex
     /// <param name="stoppingToken">Token that signals service shutdown.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _logger.LogInformation("DroneHistoryBackgroundWriter started");
+
+        // subscribe to telemetry events and push Drone instances into the channel
+        _eventBus.Subscribe<DroneTelemetryReceived>(evt =>
+        {
+            var written = _channel.Writer.TryWrite(evt.Drone);
+            if (written)
+                _logger.LogDebug("Enqueued telemetry for drone {DroneId}", evt.Drone?.Id);
+            else
+                _logger.LogWarning("Failed to enqueue telemetry for drone {DroneId}", evt.Drone?.Id);
+
+            return Task.CompletedTask;
+        });
+
         await foreach (var batch in ReadBatchesAsync(stoppingToken))
         {
             if (batch.Count == 0) continue;
 
             var docs = new List<BsonDocument>(batch.Count);
-            foreach (var droneEnvelope in batch)
+            foreach (var drone in batch)
             {
                 try
                 {
-                    var drone = System.Text.Json.JsonSerializer.Deserialize<Drone>(droneEnvelope.Payload);
                     var doc = new BsonDocument
                     {
                         ["droneId"] = drone?.Id ?? ObjectId.GenerateNewId().ToString(),
@@ -56,7 +73,7 @@ public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContex
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to deserialize drone message for background write");
+                    _logger.LogError(ex, "Failed to convert drone for background write");
                 }
             }
 
@@ -68,6 +85,7 @@ public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContex
                 try
                 {
                     await _col.InsertManyAsync(docs, cancellationToken: stoppingToken);
+                    _logger.LogInformation("Inserted {Count} drone history documents", docs.Count);
                     break;
                 }
                 catch (Exception ex) when (attempts++ < 3)
@@ -77,6 +95,8 @@ public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContex
                 }
             }
         }
+
+        _logger.LogInformation("DroneHistoryBackgroundWriter stopping");
     }
 
     /// <summary>
@@ -86,10 +106,10 @@ public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContex
     /// </summary>
     /// <param name="ct">Cancellation token used to stop iteration.</param>
     /// <returns>An async-enumerable yielding lists of <see cref="DroneEnvelope"/>.</returns>
-    private async IAsyncEnumerable<List<DroneEnvelope>> ReadBatchesAsync([EnumeratorCancellation] CancellationToken ct)
+    private async IAsyncEnumerable<List<Drone>> ReadBatchesAsync([EnumeratorCancellation] CancellationToken ct)
     {
-        var batch = new List<DroneEnvelope>(_batchSize);
-        var enumerator = _queue.ReadAllAsync(ct).GetAsyncEnumerator(ct);
+        var batch = new List<Drone>(_batchSize);
+        var enumerator = _channel.Reader.ReadAllAsync(ct).GetAsyncEnumerator(ct);
         try
         {
             while (await enumerator.MoveNextAsync())
@@ -109,8 +129,9 @@ public class DroneHistoryBackgroundWriter(DroneMessageQueue queue, MongoDbContex
                     }
                 }
 
+                _logger.LogDebug("Yielding batch of {Count} telemetry items for write", batch.Count);
                 yield return batch;
-                batch = new List<DroneEnvelope>(_batchSize);
+                batch = new List<Drone>(_batchSize);
             }
         }
         finally

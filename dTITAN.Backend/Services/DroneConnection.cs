@@ -1,27 +1,22 @@
 using System.Net.WebSockets;
 using System.Text;
-using dTITAN.Backend.DTO;
+using System.Text.Json;
+
+using dTITAN.Backend.EventBus;
+using dTITAN.Backend.Events;
+using dTITAN.Backend.Models;
 
 namespace dTITAN.Backend.Services;
 
-/// <summary>
-/// Manages a single WebSocket connection to a remote drone endpoint.
-/// Responsible for connecting, reconnecting with backoff, reading messages and
-/// enqueueing received payloads into the <see cref="DroneMessageQueue"/>.
-/// </summary>
-/// <param name="droneId">Unique identifier for the drone.</param>
-/// <param name="baseUri">Base URI of the drone WebSocket endpoint.</param>
-/// <param name="queue">Queue used to publish incoming drone envelopes.</param>
-/// <param name="logger">Logger instance for connection diagnostics.</param>
 public sealed class DroneConnection(
     string droneId,
     Uri baseUri,
-    DroneMessageQueue queue,
+    IDroneEventBus eventBus,
     ILogger<DroneConnection> logger)
 {
     private readonly string _droneId = droneId;
     private readonly Uri _baseUri = baseUri;
-    private readonly DroneMessageQueue _queue = queue;
+    private readonly IDroneEventBus _eventBus = eventBus;
     private readonly ILogger<DroneConnection> _logger = logger;
 
     public async Task RunAsync(CancellationToken ct)
@@ -65,13 +60,6 @@ public sealed class DroneConnection(
         }
     }
 
-    /// <summary>
-    /// Connects to the WebSocket and continuously receives messages until the
-    /// socket closes or the <paramref name="ct"/> is cancelled. Received payloads
-    /// are enqueued into the provided <see cref="DroneMessageQueue"/>.
-    /// </summary>
-    /// <param name="ws">Active client web socket instance.</param>
-    /// <param name="ct">Cancellation token used to stop reception.</param>
     private async Task ReceiveLoopAsync(ClientWebSocket ws, CancellationToken ct)
     {
         var buffer = new byte[4096];
@@ -95,10 +83,19 @@ public sealed class DroneConnection(
 
             var payload = Encoding.UTF8.GetString(ms.ToArray());
 
-            await _queue.EnqueueAsync(
-                new DroneEnvelope(_droneId, payload),
-                ct
-            );
+            // XXX: This might slow down loop, if so offload to another task
+            try
+            {
+                _logger.LogDebug("Received payload from drone {DroneId}", _droneId);
+                Drone? drone = JsonSerializer.Deserialize<Drone>(payload);
+                if (drone == null) continue;
+
+                _eventBus.Publish(new DroneTelemetryReceived(drone));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to deserialize drone message for background write");
+            }
         }
     }
 }

@@ -1,6 +1,8 @@
+using dTITAN.Backend.EventBus;
+
 namespace dTITAN.Backend.Services;
 
-/// <summary>
+
 /// Supervises connection instances for multiple drones and starts their
 /// background tasks. This component is responsible for creating per-drone
 /// <see cref="DroneConnection"/> instances and running them concurrently.
@@ -10,20 +12,25 @@ namespace dTITAN.Backend.Services;
 /// <param name="loggerFactory">Factory used to create loggers for individual connections.</param>
 public sealed class DroneConnectionManager(
     Uri baseUri,
-    DroneMessageQueue queue,
+    IDroneEventBus eventBus,
     ILoggerFactory loggerFactory)
 {
     private readonly Uri _baseUri = baseUri;
-    private readonly DroneMessageQueue _queue = queue;
+    private readonly IDroneEventBus _eventBus = eventBus;
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
 
     public Task StartAsync(
         IEnumerable<string> droneIds,
         CancellationToken ct)
     {
-        var tasks = droneIds.Select(droneId =>
+        var logger = _loggerFactory.CreateLogger<DroneConnectionManager>();
+        var ids = droneIds.ToList();
+        logger.LogInformation("Starting connections for {Count} drones", ids.Count);
+
+        var tasks = ids.Select(droneId =>
         {
-            var conn = new DroneConnection(droneId, _baseUri, _queue, _loggerFactory.CreateLogger<DroneConnection>());
+            logger.LogDebug("Launching connection task for drone {DroneId}", droneId);
+            var conn = new DroneConnection(droneId, _baseUri, _eventBus, _loggerFactory.CreateLogger<DroneConnection>());
             return Task.Run(() => conn.RunAsync(ct), ct);
         });
 

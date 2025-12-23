@@ -1,3 +1,5 @@
+using System.Text.Json;
+using dTITAN.Backend.EventBus;
 using Microsoft.Extensions.Logging;
 
 namespace dTITAN.Backend.Services;
@@ -11,6 +13,7 @@ public class WebSocketService : BackgroundService
 {
     private readonly DroneConnectionManager _manager;
     private readonly ILogger<WebSocketService> _logger;
+    private readonly string? _connectionString;
 
     /// <summary>
     /// Constructs the <see cref="WebSocketService"/>, validating configuration
@@ -23,51 +26,75 @@ public class WebSocketService : BackgroundService
     /// <exception cref="InvalidOperationException">Thrown when the DroneWS connection string is not configured.</exception>
     public WebSocketService(
         IConfiguration config,
-        DroneMessageQueue queue,
+        IDroneEventBus eventBus,
         ILoggerFactory loggerFactory,
         ILogger<WebSocketService> logger)
     {
         _logger = logger;
 
-        var connectionString = config.GetConnectionString("DroneWS");
-        if (string.IsNullOrEmpty(connectionString))
+        _connectionString = config.GetConnectionString("DroneWS");
+        if (string.IsNullOrEmpty(_connectionString))
             throw new InvalidOperationException("Drone WebSocket not configured.");
 
-        _logger.LogInformation("Initializing WebSocketService with {Uri}", connectionString);
-
+        _logger.LogInformation("Initializing WebSocketService with {Uri}", _connectionString);
         _manager = new DroneConnectionManager(
-            new Uri(connectionString),
-            queue,
+            new Uri(_connectionString),
+            eventBus,
             loggerFactory
         );
     }
 
-    /// <summary>
-    /// Entry point for the background service. Loads drone identifiers and
-    /// starts the connection manager which runs until cancellation.
-    /// </summary>
-    /// <param name="stoppingToken">Cancellation token signaling shutdown.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var droneIds = await LoadDroneIdsAsync(stoppingToken);
         _logger.LogInformation("Starting drone connection manager for {Count} drones", droneIds.Count());
-        await _manager.StartAsync(droneIds, stoppingToken);
+        try
+        {
+            await _manager.StartAsync(droneIds, stoppingToken);
+            _logger.LogInformation("Drone connection manager tasks completed");
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("WebSocketService cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "WebSocketService execution failed");
+            throw;
+        }
     }
 
-    /// <summary>
-    /// Loads the set of drone identifiers to connect to. This is a placeholder
-    /// implementation and should be replaced with a database or configuration
-    /// source in production.
-    /// </summary>
-    /// <param name="ct">Cancellation token for the load operation.</param>
-    /// <returns>Enumerable of drone ids.</returns>
-    private Task<IEnumerable<string>> LoadDroneIdsAsync(
+    private async Task<IEnumerable<string>> LoadDroneIdsAsync(
         CancellationToken ct)
     {
-        // TODO: Replace with DB / API / config
-        IEnumerable<string> ids = new[] { "1", "2", "3" };
+        try
+        {
+            var builder = new UriBuilder(_connectionString!);
+            if (builder.Scheme == "ws") builder.Scheme = "http";
+            else if (builder.Scheme == "wss") builder.Scheme = "https";
+            builder.Path = "/drones";
 
-        return Task.FromResult(ids);
+            var httpUri = builder.Uri;
+            using var http = new HttpClient();
+            using var res = await http.GetAsync(httpUri, ct);
+
+            if (!res.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to load drone ids from {Uri}: {StatusCode}", httpUri, res.StatusCode);
+                // XXX: defaulting to testing ids
+                return ["1", "2", "3"];
+            }
+
+            var json = await res.Content.ReadAsStringAsync(ct);
+            var ids = JsonSerializer.Deserialize<IEnumerable<string>>(json) ?? [];
+            return ids;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading drone ids");
+            return [];
+        }
     }
 }
-

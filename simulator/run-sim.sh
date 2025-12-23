@@ -80,11 +80,11 @@ create_drone() {
   fi
 }
 
-
 load_drones() {
   loading
   json=$(curl -s "$BASE_URL/drones")
-  DRONES=$(echo "$json" | jq -r '.[].id' | tr '\n' ' ')
+  ids=$(echo "$json" | jq -r '.[] | if type=="object" then (.id // empty) else . end' 2>/dev/null)
+  DRONES=$(echo "$ids" | tr '\n' ' ')
 
   if [ -z "$DRONES" ]; then
     ACTIVE_DRONE=""
@@ -94,7 +94,7 @@ load_drones() {
   else
     ACTIVE_DRONE=$(echo $DRONES | awk '{print $1}')
     echo "Drones on server:"
-    echo "$json" | jq .
+    echo "$DRONES"
     log "Loaded drones from server: $DRONES"
   fi
 }
