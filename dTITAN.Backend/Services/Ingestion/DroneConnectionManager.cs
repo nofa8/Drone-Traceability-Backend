@@ -1,6 +1,6 @@
 using dTITAN.Backend.EventBus;
 
-namespace dTITAN.Backend.Services;
+namespace dTITAN.Backend.Services.Ingestion;
 
 public sealed class DroneConnectionManager(
     Uri baseUri,

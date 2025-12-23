@@ -1,8 +1,7 @@
 using System.Text.Json;
 using dTITAN.Backend.EventBus;
-using Microsoft.Extensions.Logging;
 
-namespace dTITAN.Backend.Services;
+namespace dTITAN.Backend.Services.Ingestion;
 
 public class WebSocketService : BackgroundService
 {

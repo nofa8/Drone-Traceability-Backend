@@ -1,15 +1,16 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading.Channels;
+
 using MongoDB.Bson;
 using MongoDB.Driver;
-using System.Threading.Channels;
-using dTITAN.Backend.Data;
-using dTITAN.Backend.Models;
-using dTITAN.Backend.DTO;
-using dTITAN.Backend.EventBus;
-using dTITAN.Backend.Events;
 
-namespace dTITAN.Backend.Services;
+using dTITAN.Backend.Data;
+using dTITAN.Backend.Data.DTO;
+using dTITAN.Backend.EventBus;
+using dTITAN.Backend.Data.Events;
+
+namespace dTITAN.Backend.Services.Persistence;
 
 public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContext db, ILogger<DroneHistoryBackgroundWriter> logger) : BackgroundService
 {
@@ -18,7 +19,7 @@ public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContex
     private readonly int _batchSize = 200;
     private readonly TimeSpan _maxWait = TimeSpan.FromSeconds(1);
     private readonly ILogger<DroneHistoryBackgroundWriter> _logger = logger;
-    private readonly Channel<Drone> _channel = Channel.CreateUnbounded<Drone>();
+    private readonly Channel<DroneTelemetry> _channel = Channel.CreateUnbounded<DroneTelemetry>();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -85,9 +86,9 @@ public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContex
         _logger.LogInformation("DroneHistoryBackgroundWriter stopping");
     }
 
-    private async IAsyncEnumerable<List<Drone>> ReadBatchesAsync([EnumeratorCancellation] CancellationToken ct)
+    private async IAsyncEnumerable<List<DroneTelemetry>> ReadBatchesAsync([EnumeratorCancellation] CancellationToken ct)
     {
-        var batch = new List<Drone>(_batchSize);
+        var batch = new List<DroneTelemetry>(_batchSize);
         var enumerator = _channel.Reader.ReadAllAsync(ct).GetAsyncEnumerator(ct);
         try
         {
@@ -110,7 +111,7 @@ public class DroneHistoryBackgroundWriter(IDroneEventBus eventBus, MongoDbContex
 
                 _logger.LogDebug("Yielding batch of {Count} telemetry items for write", batch.Count);
                 yield return batch;
-                batch = new List<Drone>(_batchSize);
+                batch = new List<DroneTelemetry>(_batchSize);
             }
         }
         finally

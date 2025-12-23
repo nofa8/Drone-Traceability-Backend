@@ -1,12 +1,11 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-
+using dTITAN.Backend.Data.DTO;
+using dTITAN.Backend.Data.Events;
 using dTITAN.Backend.EventBus;
-using dTITAN.Backend.Events;
-using dTITAN.Backend.Models;
 
-namespace dTITAN.Backend.Services;
+namespace dTITAN.Backend.Services.Ingestion;
 
 public sealed class DroneConnection(
     string droneId,
@@ -34,13 +33,21 @@ public sealed class DroneConnection(
                 await ws.ConnectAsync(uri, ct);
                 attempt = 0;
                 _logger.LogInformation("Drone \"{DroneId}\" connected", _droneId);
-                    _eventBus.Publish(new DroneConnected(_droneId));
+                
+                // Receive initial snapshot
+                var initialPayload = await ReceiveSingleAsync(ws, ct);
+                var drone = JsonSerializer.Deserialize<DroneTelemetry>(initialPayload);
+                if (drone == null) throw new InvalidOperationException("Failed to parse initial drone snapshot");
+
+                _eventBus.Publish(
+                    new DroneConnected(drone, DateTime.UtcNow)
+                );
 
                 await ReceiveLoopAsync(ws, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                _eventBus.Publish(new DroneDisconnected(_droneId));
+                _eventBus.Publish(new DroneDisconnected(_droneId, DateTime.UtcNow));
                 break;
             }
             catch (Exception ex)
@@ -54,7 +61,7 @@ public sealed class DroneConnection(
                 _logger.LogWarning("[{DroneId}] Connection error: {Error}. Attempt {Attempt}. Reconnecting in {Delay}ms.",
                     _droneId, shortError, attempt, delay);
 
-                _eventBus.Publish(new DroneDisconnected(_droneId));
+                _eventBus.Publish(new DroneDisconnected(_droneId, DateTime.UtcNow));
 
                 // Preserve full exception details at Debug level (no stack trace in main logs).
                 _logger.LogDebug(ex, "Full exception for drone {DroneId} on connect attempt {Attempt}", _droneId, attempt);
@@ -63,6 +70,33 @@ public sealed class DroneConnection(
             }
         }
     }
+
+
+    private static async Task<string> ReceiveSingleAsync(
+        ClientWebSocket ws,
+        CancellationToken ct)
+    {
+        var buffer = new byte[4096];
+        var segment = new ArraySegment<byte>(buffer);
+
+        using var ms = new MemoryStream();
+        WebSocketReceiveResult result;
+
+        do
+        {
+            result = await ws.ReceiveAsync(segment, ct);
+
+            if (result.MessageType == WebSocketMessageType.Close)
+                throw new WebSocketException("Connection closed during handshake");
+
+            ms.Write(segment.Array!, segment.Offset, result.Count);
+        }
+        while (!result.EndOfMessage);
+
+        return Encoding.UTF8.GetString(ms.ToArray());
+    }
+
+
 
     private async Task ReceiveLoopAsync(ClientWebSocket ws, CancellationToken ct)
     {
@@ -80,7 +114,7 @@ public sealed class DroneConnection(
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    _eventBus.Publish(new DroneDisconnected(_droneId));
+                    _eventBus.Publish(new DroneDisconnected(_droneId, DateTime.UtcNow));
                     return;
                 }
 
@@ -94,10 +128,10 @@ public sealed class DroneConnection(
             try
             {
                 _logger.LogDebug("Received payload from drone {DroneId}", _droneId);
-                Drone? drone = JsonSerializer.Deserialize<Drone>(payload);
+                DroneTelemetry? drone = JsonSerializer.Deserialize<DroneTelemetry>(payload);
                 if (drone == null) continue;
 
-                _eventBus.Publish(new DroneTelemetryReceived(drone));
+                _eventBus.Publish(new DroneTelemetryReceived(drone, DateTime.UtcNow));
             }
             catch (Exception ex)
             {
