@@ -3,7 +3,7 @@ using dTITAN.Backend.Data;
 using dTITAN.Backend.Data.Documents;
 using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Data.Events;
-using dTITAN.Backend.Data.Transport.Websockets;
+using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Services.Persistence;
 

@@ -1,4 +1,4 @@
-using dTITAN.Backend.Data.Transport.Websockets;
+using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Data.Events;
 

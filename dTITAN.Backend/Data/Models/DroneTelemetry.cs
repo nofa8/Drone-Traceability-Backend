@@ -1,12 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Transport.Websockets;
-
-/**
- * TODO:
- * Current WebSocket Drone Telemetry only uses a subset of the fields available.
- * Id, Lat, Lng, Alt, BatLvl, IsFlying
- */
+namespace dTITAN.Backend.Data.Models;
 
 public class DroneTelemetry
 {

@@ -1,7 +1,7 @@
-using dTITAN.Backend.Data.Events;
-using dTITAN.Backend.Data.Transport.Websockets;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using dTITAN.Backend.Data.Events;
+using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Data.Documents;
 

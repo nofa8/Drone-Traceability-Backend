@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Transport.Websockets;
+namespace dTITAN.Backend.Data.Models;
 
 public class GeoPoint
 {
