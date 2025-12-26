@@ -1,15 +1,12 @@
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.DTO;
+namespace dTITAN.Backend.Data.Transport.Websockets;
 
-public class Location
-{
-    [JsonPropertyName("lat")]
-    public double Latitude { get; set; }
-
-    [JsonPropertyName("lng")]
-    public double Longitude { get; set; }
-}
+/**
+ * TODO:
+ * Current WebSocket Drone Telemetry only uses a subset of the fields available.
+ * Id, Lat, Lng, Alt, BatLvl, IsFlying
+ */
 
 public class DroneTelemetry
 {
@@ -20,10 +17,10 @@ public class DroneTelemetry
     [JsonPropertyName("model")]
     public string Model { get; set; } = "";
 
-    [JsonPropertyName("homeLocation")]
-    public Location HomeLocation { get; set; } = new Location();
-
     // Drone State
+    [JsonPropertyName("homeLocation")]
+    public GeoPoint HomeLocation { get; set; } = new GeoPoint();
+    
     [JsonPropertyName("lat")]
     public double Latitude { get; set; }
 

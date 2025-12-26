@@ -4,7 +4,7 @@ services:
     container_name: websocket-iouv
     working_dir: /app
     volumes:
-      - ./Websockets:/app
+      - ./ExternalWebsocket:/app
     command: sh -c "npm install && node app.js"
     ports:
       - "8083:8080"

@@ -1,0 +1,23 @@
+{
+  "racing_drone": {
+    "id": "RD001",
+    "model": "RacerX",
+    "maxSpeed": 10,
+    "targetAlt": 20,
+    "hdg": 0
+  },
+  "survey_drone": {
+    "id": "SV3000",
+    "model": "Surveyor3000",
+    "maxSpeed": 5,
+    "targetAlt": 50,
+    "hdg": 90
+  },
+  "photography_drone": {
+    "id": "PH100",
+    "model": "PhotoFly",
+    "maxSpeed": 4,
+    "targetAlt": 30,
+    "hdg": 180
+  }
+}

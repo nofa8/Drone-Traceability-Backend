@@ -1,7 +1,7 @@
 using MongoDB.Driver;
-using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Data;
 using dTITAN.Backend.Data.Documents;
+using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Data.Events;
 
 namespace dTITAN.Backend.Services.Persistence;
@@ -13,84 +13,45 @@ public class DroneRegistryWriter
     public DroneRegistryWriter(MongoDbContext db, IDroneEventBus eventBus)
     {
         _collection = db.GetCollection<DroneRegistryDocument>("drone_registry");
+
+        // Ensure DroneId is unique in MongoDB
+        var keys = Builders<DroneRegistryDocument>.IndexKeys.Ascending(d => d.DroneId);
+        _collection.Indexes.CreateOne(new CreateIndexModel<DroneRegistryDocument>(keys, new CreateIndexOptions { Unique = true }));
+
+        // Subscribe to events
         eventBus.Subscribe<DroneConnected>(HandleDroneConnected);
         eventBus.Subscribe<DroneTelemetryReceived>(HandleTelemetryReceived);
         eventBus.Subscribe<DroneDisconnected>(HandleDroneDisconnected);
     }
 
-    private async Task HandleDroneConnected(DroneConnected evt)
-    {
-        var filter = Builders<DroneRegistryDocument>.Filter.Eq(d => d.DroneId, evt.Drone.Id);
-        var existing = await _collection.Find(filter).FirstOrDefaultAsync();
+    private Task HandleDroneConnected(DroneConnected evt)
+        => UpsertDrone(evt.Drone.Id, evt.Drone.Model, evt.ReceivedAt);
 
-        if (existing == null)
-        {
-            var doc = new DroneRegistryDocument
-            {
-                DroneId = evt.Drone.Id,
-                Model = evt.Drone.Model,
-                HomeLocation = Location.FromDto(evt.Drone.HomeLocation),
-                FirstSeenAt = evt.ReceivedAt,
-                LastSeenAt = evt.ReceivedAt
-            };
-            await _collection.InsertOneAsync(doc);
-        }
-        else
-        {
-            var update = Builders<DroneRegistryDocument>.Update
-                .Set(d => d.Model, evt.Drone.Model)
-                .Set(d => d.HomeLocation, Location.FromDto(evt.Drone.HomeLocation))
-                .Set(d => d.LastSeenAt, evt.ReceivedAt);
-
-            await _collection.UpdateOneAsync(filter, update);
-        }
-    }
+    private Task HandleTelemetryReceived(DroneTelemetryReceived evt)
+        => UpsertDrone(evt.Drone.Id, evt.Drone.Model, evt.ReceivedAt);
 
     private async Task HandleDroneDisconnected(DroneDisconnected evt)
     {
         var filter = Builders<DroneRegistryDocument>.Filter.Eq(d => d.DroneId, evt.DroneId);
-        var existing = await _collection.Find(filter).FirstOrDefaultAsync();
+        var update = Builders<DroneRegistryDocument>.Update.Set(d => d.LastSeenAt, evt.ReceivedAt);
 
-        if (existing != null)
-        {
-            var update = Builders<DroneRegistryDocument>.Update
-                .Set(d => d.LastSeenAt, evt.ReceivedAt);
-            await _collection.UpdateOneAsync(filter, update);
-        }
+        await _collection.UpdateOneAsync(filter, update);
     }
 
-    private async Task HandleTelemetryReceived(DroneTelemetryReceived evt)
+    /// <summary>
+    /// Upserts a drone document atomically using DroneId as key.
+    /// FirstSeenAt is set only if document is new.
+    /// LastSeenAt is updated every time.
+    /// </summary>
+    private async Task UpsertDrone(string droneId, string model, DateTime timestamp)
     {
-        var filter = Builders<DroneRegistryDocument>.Filter.Eq(d => d.DroneId, evt.Drone.Id);
-        var existing = await _collection.Find(filter).FirstOrDefaultAsync();
+        var filter = Builders<DroneRegistryDocument>.Filter.Eq(d => d.DroneId, droneId);
 
-        if (existing == null)
-        {
-            var doc = new DroneRegistryDocument
-            {
-                DroneId = evt.Drone.Id,
-                Model = evt.Drone.Model,
-                HomeLocation = Location.FromDto(evt.Drone.HomeLocation),
-                FirstSeenAt = evt.ReceivedAt,
-                LastSeenAt = evt.ReceivedAt
-            };
-            await _collection.InsertOneAsync(doc);
-            return;
-        }
+        var update = Builders<DroneRegistryDocument>.Update
+            .Set(d => d.Model, model)
+            .SetOnInsert(d => d.FirstSeenAt, timestamp)
+            .Set(d => d.LastSeenAt, timestamp);
 
-        // Update only if static metadata changed
-        bool changed = existing.Model != evt.Drone.Model
-                       || !existing.HomeLocation.Equals(Location.FromDto(evt.Drone.HomeLocation));
-
-        var updateBuilder = Builders<DroneRegistryDocument>.Update.Set(d => d.LastSeenAt, evt.ReceivedAt);
-
-        if (changed)
-        {
-            updateBuilder = updateBuilder
-                .Set(d => d.Model, evt.Drone.Model)
-                .Set(d => d.HomeLocation, Location.FromDto(evt.Drone.HomeLocation));
-        }
-
-        await _collection.UpdateOneAsync(filter, updateBuilder);
+        await _collection.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true });
     }
 }

@@ -3,6 +3,7 @@ using dTITAN.Backend.Data;
 using dTITAN.Backend.Data.Documents;
 using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Data.Events;
+using dTITAN.Backend.Data.Transport.Websockets;
 
 namespace dTITAN.Backend.Services.Persistence;
 
@@ -13,6 +14,10 @@ public class DroneSnapshotWriter
     public DroneSnapshotWriter(MongoDbContext db, IDroneEventBus eventBus)
     {
         _collection = db.GetCollection<DroneTelemetryDocument>("drone_snapshot");
+
+        // Ensure DroneId is unique in MongoDB
+        var keys = Builders<DroneTelemetryDocument>.IndexKeys.Ascending(d => d.DroneId);
+        _collection.Indexes.CreateOne(new CreateIndexModel<DroneTelemetryDocument>(keys, new CreateIndexOptions { Unique = true }));
         eventBus.Subscribe<DroneTelemetryReceived>(HandleTelemetryReceived);
     }
 
@@ -22,6 +27,11 @@ public class DroneSnapshotWriter
         {
             DroneId = evt.Drone.Id,
             Timestamp = evt.ReceivedAt,
+            HomeLocation = new GeoPoint
+            {
+                Latitude = evt.Drone.HomeLocation.Latitude,
+                Longitude = evt.Drone.HomeLocation.Longitude
+            },
             Latitude = evt.Drone.Latitude,
             Longitude = evt.Drone.Longitude,
             Altitude = evt.Drone.Altitude,
