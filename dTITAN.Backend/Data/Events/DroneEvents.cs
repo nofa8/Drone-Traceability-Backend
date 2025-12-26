@@ -1,9 +1,8 @@
-using dTITAN.Backend.Data.DTO;
+using dTITAN.Backend.Data.Transport.Websockets;
 
 namespace dTITAN.Backend.Data.Events;
 
 public interface IDroneEvent { }
-
 
 public record DroneTelemetryReceived(DroneTelemetry Drone, DateTime ReceivedAt) : IDroneEvent;
 public record DroneConnected(DroneTelemetry Drone, DateTime ReceivedAt) : IDroneEvent;

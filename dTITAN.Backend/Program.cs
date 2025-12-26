@@ -26,13 +26,21 @@ builder.Host.UseSerilog();
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<IDroneEventBus, InMemoryDroneEventBus>();
 
-// Persistence writers (constructor-injected; they resolve collections from MongoDbContext and subscribe on construction)
+// Persistence services
 builder.Services.AddSingleton<DroneTelemetryWriter>();
 builder.Services.AddSingleton<DroneRegistryWriter>();
 builder.Services.AddSingleton<DroneSnapshotWriter>();
 
+// Ingestion services
+builder.Services.AddSingleton(sp =>
+{
+    var eventBus = sp.GetRequiredService<IDroneEventBus>();
+    return new DroneManager(eventBus);
+});
+
 // Hosted services
-builder.Services.AddHostedService<WebSocketService>();
+builder.Services.AddHostedService<DroneWebSocketClient>();
+builder.Services.AddHostedService<DroneTimeoutWorker>();
 
 // Domain / optional services
 builder.Services.AddScoped<IDroneService, DroneService>();

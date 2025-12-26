@@ -1,14 +1,20 @@
 using dTITAN.Backend.Data.Events;
+using dTITAN.Backend.Data.Transport.Websockets;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace dTITAN.Backend.Data.Documents;
 
 public class DroneTelemetryDocument
 {
-    public ObjectId _id { get; set; }
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonIgnoreIfDefault]
+    public string? Id { get; set; }
     public string DroneId { get; set; } = default!;
     public DateTime Timestamp { get; set; }
 
+    public GeoPoint HomeLocation { get; set; } = new GeoPoint();
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double Altitude { get; set; }
@@ -27,7 +33,7 @@ public class DroneTelemetryDocument
     public bool IsHomeLocationSet { get; set; }
     public bool AreMotorsOn { get; set; }
     public bool AreLightsOn { get; set; }
-    
+
     public static DroneTelemetryDocument FromEvent(DroneTelemetryReceived evt)
     {
         var d = evt.Drone;
@@ -35,6 +41,11 @@ public class DroneTelemetryDocument
         {
             DroneId = d.Id,
             Timestamp = evt.ReceivedAt,
+            HomeLocation = new GeoPoint
+            {
+                Latitude = d.HomeLocation.Latitude,
+                Longitude = d.HomeLocation.Longitude
+            },
             Latitude = d.Latitude,
             Longitude = d.Longitude,
             Altitude = d.Altitude,

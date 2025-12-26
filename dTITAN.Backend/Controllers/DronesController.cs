@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using dTITAN.Backend.Services.Domain;
-using dTITAN.Backend.Data.DTO;
+using dTITAN.Backend.Data.Transport.Websockets;
 
 namespace dTITAN.Backend.Controllers;
 
