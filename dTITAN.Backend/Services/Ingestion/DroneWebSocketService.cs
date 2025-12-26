@@ -115,10 +115,4 @@ public sealed class DroneWebSocketClient : BackgroundService
             telemetry.Altitude
         );
     }
-
-    private void HandleDroneCommandUpdate(DroneCommand command, string? userId)
-    {
-        // Optional logging / handling for command updates
-        _logger.LogInformation("Received command update {CommandType} from {UserId}", command.GetType().Name, userId);
-    }
 }
