@@ -36,7 +36,7 @@ public sealed class DroneManager(IDroneEventBus eventBus, TimeSpan? timeout = nu
             {
                 if (_droneSessions.TryRemove(id, out _))
                 {
-                    _eventBus.Publish(new DroneDisconnected(id, now));
+                    _eventBus.Publish(new DroneDisconnected(id));
                 }
             }
         }
