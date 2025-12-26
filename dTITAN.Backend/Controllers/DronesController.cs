@@ -1,19 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using dTITAN.Backend.Services.Domain;
-using dTITAN.Backend.Data.Transport.Websockets;
+using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class DronesController : ControllerBase
+public class DronesController(IDroneService droneService) : ControllerBase
 {
-    private readonly IDroneService _droneService;
-
-    public DronesController(IDroneService droneService)
-    {
-        _droneService = droneService;
-    }
+    private readonly IDroneService _droneService = droneService;
 
     [HttpPost]
     public async Task<IActionResult> AddDrone([FromBody] DroneTelemetry drone)

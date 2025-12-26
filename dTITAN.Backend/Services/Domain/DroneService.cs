@@ -1,6 +1,6 @@
 using MongoDB.Driver;
 using dTITAN.Backend.Data;
-using dTITAN.Backend.Data.Transport.Websockets;
+using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Services.Domain;
 

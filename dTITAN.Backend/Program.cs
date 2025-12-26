@@ -3,7 +3,6 @@ using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Services.Domain;
 using dTITAN.Backend.Services.Ingestion;
 using dTITAN.Backend.Services.Persistence;
-using dTITAN.Backend.Data.Documents;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);

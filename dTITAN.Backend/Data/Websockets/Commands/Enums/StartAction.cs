@@ -1,0 +1,22 @@
+using System.Text.Json.Serialization;
+
+namespace dTITAN.Backend.Data.Websockets.Commands.Enums;
+
+/// <summary>
+/// Action to perform before a mission starts.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum StartAction
+{
+    /// <summary>
+    /// Automatically take off before the mission begins.
+    /// </summary>
+    [JsonPropertyName("takeoff")]
+    Takeoff,
+
+    /// <summary>
+    /// Do not perform any start action; begin from current state.
+    /// </summary>
+    [JsonPropertyName("none")]
+    None
+}

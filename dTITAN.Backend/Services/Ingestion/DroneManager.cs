@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using dTITAN.Backend.Data.Events;
-using dTITAN.Backend.Data.Transport.Websockets;
+using dTITAN.Backend.Data.Models;
 using dTITAN.Backend.EventBus;
 
 namespace dTITAN.Backend.Services.Ingestion;
