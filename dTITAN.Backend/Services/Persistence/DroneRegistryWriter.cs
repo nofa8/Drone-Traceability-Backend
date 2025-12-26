@@ -25,15 +25,16 @@ public class DroneRegistryWriter
     }
 
     private Task HandleDroneConnected(DroneConnected evt)
-        => UpsertDrone(evt.Drone.Id, evt.Drone.Model, evt.ReceivedAt);
+        => UpsertDrone(evt.Drone.Id, evt.Drone.Model, evt.ReceivedAt, true);
 
     private Task HandleTelemetryReceived(DroneTelemetryReceived evt)
-        => UpsertDrone(evt.Drone.Id, evt.Drone.Model, evt.ReceivedAt);
+        => UpsertDrone(evt.Drone.Id, evt.Drone.Model, evt.ReceivedAt, true);
 
     private async Task HandleDroneDisconnected(DroneDisconnected evt)
     {
         var filter = Builders<DroneRegistryDocument>.Filter.Eq(d => d.DroneId, evt.DroneId);
-        var update = Builders<DroneRegistryDocument>.Update.Set(d => d.LastSeenAt, evt.ReceivedAt);
+        var update = Builders<DroneRegistryDocument>.Update
+            .Set(d => d.IsConnected, false);
 
         await _collection.UpdateOneAsync(filter, update);
     }
@@ -41,17 +42,19 @@ public class DroneRegistryWriter
     /// <summary>
     /// Upserts a drone document atomically using DroneId as key.
     /// FirstSeenAt is set only if document is new.
-    /// LastSeenAt is updated every time.
+    /// LastSeenAt and IsConnected are updated every time.
     /// </summary>
-    private async Task UpsertDrone(string droneId, string model, DateTime timestamp)
+    private async Task UpsertDrone(string droneId, string model, DateTime timestamp, bool isConnected)
     {
         var filter = Builders<DroneRegistryDocument>.Filter.Eq(d => d.DroneId, droneId);
 
         var update = Builders<DroneRegistryDocument>.Update
             .Set(d => d.Model, model)
             .SetOnInsert(d => d.FirstSeenAt, timestamp)
-            .Set(d => d.LastSeenAt, timestamp);
+            .Set(d => d.LastSeenAt, timestamp)
+            .Set(d => d.IsConnected, isConnected);
 
         await _collection.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true });
     }
+
 }

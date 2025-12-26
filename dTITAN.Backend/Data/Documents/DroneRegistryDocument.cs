@@ -12,6 +12,7 @@ public class DroneRegistryDocument
     public string? Id { get; set; }
     public string DroneId { get; set; } = default!;
     public string Model { get; set; } = default!;
+    public bool IsConnected { get; set; }
     public DateTime FirstSeenAt { get; set; }
     public DateTime LastSeenAt { get; set; }
 
