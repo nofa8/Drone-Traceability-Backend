@@ -5,24 +5,36 @@ using dTITAN.Backend.EventBus;
 
 namespace dTITAN.Backend.Services.Ingestion;
 
-public sealed class DroneManager(IDroneEventBus eventBus, TimeSpan? timeout = null)
+public sealed class DroneManager(IDroneEventBus eventBus, TimeSpan timeout)
 {
-    private readonly ConcurrentDictionary<string, DroneSession> _droneSessions = new();
     private readonly IDroneEventBus _eventBus = eventBus;
-    private readonly TimeSpan _timeout = timeout ?? TimeSpan.FromSeconds(10);
+    private readonly TimeSpan _timeout = timeout;
+    private readonly ConcurrentDictionary<string, DroneSession> _sessions = new();
+    // priority queue: earliest expiration first
+    private readonly PriorityQueue<string, DateTime> _expirationQueue = new();
+    private readonly Lock _expirationLock = new();
+
 
     public void ProcessTelemetry(DroneTelemetry telemetry)
     {
         var now = DateTime.UtcNow;
-        var droneId = telemetry.Id;
+        var id = telemetry.Id;
 
-        var session = _droneSessions.GetOrAdd(droneId, id =>
+        var session = _sessions.GetOrAdd(id, _ =>
         {
             _eventBus.Publish(new DroneConnected(telemetry, now));
             return new DroneSession(id, now);
         });
 
         session.LastSeen = now;
+
+        // calculate expiration and enqueue
+        var expiration = now + _timeout;
+        lock (_expirationLock)
+        {
+            _expirationQueue.Enqueue(id, expiration);
+        }
+
         _eventBus.Publish(new DroneTelemetryReceived(telemetry, now));
     }
 
@@ -30,13 +42,26 @@ public sealed class DroneManager(IDroneEventBus eventBus, TimeSpan? timeout = nu
     {
         var now = DateTime.UtcNow;
 
-        foreach (var (id, session) in _droneSessions)
+        while (true)
         {
-            if (now - session.LastSeen > _timeout)
+            string? idToExpire;
+            DateTime expirationTime;
+
+            lock (_expirationLock)
             {
-                if (_droneSessions.TryRemove(id, out _))
+                if (_expirationQueue.Count == 0) break;
+                _expirationQueue.TryPeek(out idToExpire, out expirationTime);
+                if (expirationTime > now) break;
+                _expirationQueue.TryDequeue(out _, out _);
+            }
+
+            if (idToExpire != null &&
+                _sessions.TryGetValue(idToExpire, out var session) &&
+                session.LastSeen + _timeout <= now)
+            {
+                if (_sessions.TryRemove(idToExpire, out _))
                 {
-                    _eventBus.Publish(new DroneDisconnected(id));
+                    _eventBus.Publish(new DroneDisconnected(idToExpire));
                 }
             }
         }
