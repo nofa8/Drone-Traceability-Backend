@@ -13,7 +13,7 @@ public class MongoDbContext
             throw new InvalidOperationException("MongoDB connection string not configured.");
 
         var client = new MongoClient(connectionString);
-        _db = client.GetDatabase("DigitalTwinDb");
+        _db = client.GetDatabase("dTITAN");
     }
 
     public IMongoCollection<T> GetCollection<T>(string name) => _db.GetCollection<T>(name);

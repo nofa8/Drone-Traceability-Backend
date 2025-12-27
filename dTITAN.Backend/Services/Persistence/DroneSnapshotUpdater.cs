@@ -9,21 +9,17 @@ namespace dTITAN.Backend.Services.Persistence;
 
 public class DroneSnapshotWriter
 {
-    private readonly IMongoCollection<DroneTelemetryDocument> _collection;
+    private readonly IMongoCollection<DroneSnapshotDocument> _collection;
 
-    public DroneSnapshotWriter(MongoDbContext db, IDroneEventBus eventBus)
+    public DroneSnapshotWriter(IMongoCollection<DroneSnapshotDocument> collection, IDroneEventBus eventBus)
     {
-        _collection = db.GetCollection<DroneTelemetryDocument>("drone_snapshot");
-
-        // Ensure DroneId is unique in MongoDB
-        var keys = Builders<DroneTelemetryDocument>.IndexKeys.Ascending(d => d.DroneId);
-        _collection.Indexes.CreateOne(new CreateIndexModel<DroneTelemetryDocument>(keys, new CreateIndexOptions { Unique = true }));
+        _collection = collection;
         eventBus.Subscribe<DroneTelemetryReceived>(HandleTelemetryReceived);
     }
 
     private async Task HandleTelemetryReceived(DroneTelemetryReceived evt)
     {
-        var doc = new DroneTelemetryDocument
+        var doc = new DroneSnapshotDocument
         {
             DroneId = evt.Drone.Id,
             Timestamp = evt.ReceivedAt,

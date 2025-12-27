@@ -1,5 +1,4 @@
 using MongoDB.Driver;
-using dTITAN.Backend.Data;
 using dTITAN.Backend.Data.Documents;
 using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Data.Events;
@@ -10,9 +9,9 @@ public class DroneTelemetryWriter
 {
     private readonly IMongoCollection<DroneTelemetryDocument> _collection;
 
-    public DroneTelemetryWriter(MongoDbContext db, IDroneEventBus eventBus)
+    public DroneTelemetryWriter(IMongoCollection<DroneTelemetryDocument> collection, IDroneEventBus eventBus)
     {
-        _collection = db.GetCollection<DroneTelemetryDocument>("drone_telemetry");
+        _collection = collection;
         eventBus.Subscribe<DroneTelemetryReceived>(HandleTelemetryReceived);
     }
 
