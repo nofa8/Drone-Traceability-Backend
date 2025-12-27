@@ -24,6 +24,13 @@ public sealed class DroneManager(IDroneEventBus eventBus, TimeSpan timeout, ILog
         });
 
         session.LastSeen = now;
+        _logger.LogDebug(
+            "Telemetry {Id}: [{Lat}, {Lng}, {Alt}]",
+            telemetry.Id,
+            telemetry.Latitude,
+            telemetry.Longitude,
+            telemetry.Altitude
+        );
         _eventBus.Publish(new DroneTelemetryReceived(telemetry, now));
     }
 

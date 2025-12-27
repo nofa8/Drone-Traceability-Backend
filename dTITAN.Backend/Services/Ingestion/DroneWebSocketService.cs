@@ -51,7 +51,7 @@ public sealed class DroneWebSocketClient : BackgroundService
                 // start background processor
                 Task processTask = ProcessMessages(ct);
 
-                await RecieveLoop(ws, ct);
+                await ReceiveLoop(ws, ct);
 
                 // complete channel so processor finishes
                 _messageChannel.Writer.Complete();
@@ -66,11 +66,9 @@ public sealed class DroneWebSocketClient : BackgroundService
                 _logger.LogWarning(ex, "WebSocket connection lost");
             }
 
-            if (ct.IsCancellationRequested)
-                break;
+            if (ct.IsCancellationRequested) break;
 
             _logger.LogInformation("Reconnecting in {Delay}s", backoff.TotalSeconds);
-
             await Task.Delay(backoff, ct);
             backoff = TimeSpan.FromSeconds(
                 Math.Min(backoff.TotalSeconds * 2, maxBackoff.TotalSeconds)
@@ -78,10 +76,9 @@ public sealed class DroneWebSocketClient : BackgroundService
         }
     }
 
-    private async Task RecieveLoop(ClientWebSocket ws, CancellationToken ct)
+    private async Task ReceiveLoop(ClientWebSocket ws, CancellationToken ct)
     {
         var buffer = new ArraySegment<byte>(new byte[8192]);
-
         while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
         {
             using var ms = new MemoryStream();
@@ -89,20 +86,17 @@ public sealed class DroneWebSocketClient : BackgroundService
             do
             {
                 result = await ws.ReceiveAsync(buffer, ct);
-
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     _logger.LogWarning("Remote requested close of WebSocket");
                     await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", ct);
                     return;
                 }
-
                 ms.Write(buffer.Array!, buffer.Offset, result.Count);
             }
             while (!result.EndOfMessage);
 
             if (ms.Length == 0) continue;
-
             var text = Encoding.UTF8.GetString(ms.ToArray());
             await _messageChannel.Writer.WriteAsync(text, ct);
         }
@@ -112,32 +106,20 @@ public sealed class DroneWebSocketClient : BackgroundService
     {
         await foreach (var payload in _messageChannel.Reader.ReadAllAsync(ct))
         {
-            HandleMessage(payload);
-        }
-    }
+            WsEnvelope? envelope;
+            try
+            {
+                envelope = JsonSerializer.Deserialize<WsEnvelope>(payload);
+                if (envelope == null) continue;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Invalid WS envelope");
+                continue;
+            }
 
-    private void HandleMessage(string payload)
-    {
-        WsEnvelope? envelope;
-        try
-        {
-            envelope = JsonSerializer.Deserialize<WsEnvelope>(payload);
-            if (envelope == null) return;
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "Invalid WS envelope");
-            return;
-        }
-
-        switch (envelope.Role)
-        {
-            case "drone":
-                HandleTelemetry(envelope);
-                break;
-            default:
-                _logger.LogDebug("Unknown role {Role}", envelope.Role);
-                break;
+            if (envelope.Role == "drone") HandleTelemetry(envelope);
+            else _logger.LogWarning("Unknown role {Role}", envelope.Role);
         }
     }
 
@@ -153,16 +135,7 @@ public sealed class DroneWebSocketClient : BackgroundService
             _logger.LogError(ex, "Invalid telemetry payload");
             return;
         }
-
         if (telemetry == null) return;
-
         _manager.ProcessTelemetry(telemetry);
-        _logger.LogDebug(
-            "Telemetry {Id}: [{Lat}, {Lng}, {Alt}]",
-            envelope.Id,
-            telemetry.Latitude,
-            telemetry.Longitude,
-            telemetry.Altitude
-        );
     }
 }
