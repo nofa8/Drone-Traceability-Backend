@@ -1,16 +1,16 @@
 namespace dTITAN.Backend.Services.Ingestion;
 
-public class DroneTimeoutWorker(DroneManager manager) : BackgroundService
+public class DroneTimeoutWorker(DroneManager manager, TimeSpan timeout) : BackgroundService
 {
     private readonly DroneManager _manager = manager;
-    private readonly TimeSpan _interval = TimeSpan.FromSeconds(1);
+    private readonly TimeSpan _timeout = timeout;
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
             _manager.SweepDisconnected();
-            await Task.Delay(_interval, ct);
+            await Task.Delay(_timeout, ct);
         }
     }
 }

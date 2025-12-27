@@ -21,7 +21,7 @@ Log.Logger = new LoggerConfiguration()
 builder.Logging.ClearProviders();
 builder.Host.UseSerilog();
 
-// Singleton services
+// Singletons
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<IDroneEventBus, InMemoryDroneEventBus>();
 
@@ -31,15 +31,20 @@ builder.Services.AddSingleton<DroneRegistryWriter>();
 builder.Services.AddSingleton<DroneSnapshotWriter>();
 
 // Ingestion services
+var disconnectTimeout = TimeSpan.FromSeconds(5);
 builder.Services.AddSingleton(sp =>
-{
-    var eventBus = sp.GetRequiredService<IDroneEventBus>();
-    return new DroneManager(eventBus);
-});
+    new DroneManager(
+        sp.GetRequiredService<IDroneEventBus>(),
+        disconnectTimeout)
+);
 
 // Hosted services
 builder.Services.AddHostedService<DroneWebSocketClient>();
-builder.Services.AddHostedService<DroneTimeoutWorker>();
+builder.Services.AddHostedService(sp =>
+    new DroneTimeoutWorker(
+        sp.GetRequiredService<DroneManager>(),
+        disconnectTimeout)
+);
 
 // Domain / optional services
 builder.Services.AddScoped<IDroneService, DroneService>();

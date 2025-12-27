@@ -1,9 +1,9 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using dTITAN.Backend.Data.Models;
 using dTITAN.Backend.Data.Websockets;
-using dTITAN.Backend.Data.Websockets.Commands;
 
 namespace dTITAN.Backend.Services.Ingestion;
 
@@ -12,6 +12,8 @@ public sealed class DroneWebSocketClient : BackgroundService
     private readonly ILogger _logger;
     private readonly DroneManager _manager;
     private readonly Uri _uri;
+
+    private readonly Channel<string> _messageChannel = Channel.CreateUnbounded<string>();
 
     public DroneWebSocketClient(
         IConfiguration config,
@@ -32,45 +34,95 @@ public sealed class DroneWebSocketClient : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        using var ws = new ClientWebSocket();
-        await ws.ConnectAsync(_uri, ct);
-
-        var buffer = new byte[8192];
-        var segment = new ArraySegment<byte>(buffer);
+        var backoff = TimeSpan.FromSeconds(1);
+        var maxBackoff = TimeSpan.FromSeconds(30);
 
         while (!ct.IsCancellationRequested)
         {
-            using var ms = new MemoryStream();
-            WebSocketReceiveResult result;
-
-            do
-            {
-                result = await ws.ReceiveAsync(segment, ct);
-                if (result.MessageType == WebSocketMessageType.Close) return;
-                ms.Write(segment.Array!, segment.Offset, result.Count);
-            }
-            while (!result.EndOfMessage);
-
-            var payload = Encoding.UTF8.GetString(ms.ToArray());
+            using var ws = new ClientWebSocket();
+            ws.Options.KeepAliveTimeout = TimeSpan.FromSeconds(10);
 
             try
             {
-                HandleMessage(payload);
+                _logger.LogInformation("Connecting to WebSocket {Uri}", _uri);
+                await ws.ConnectAsync(_uri, ct);
+                backoff = TimeSpan.FromSeconds(1);
+
+                // start background processor
+                Task processTask = ProcessMessages(ct);
+
+                await RecieveLoop(ws, ct);
+
+                // complete channel so processor finishes
+                _messageChannel.Writer.Complete();
+                await processTask;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Failed to process incoming WS message");
+                break; // service shutting down
             }
+            catch (Exception ex) when (ex is WebSocketException || ex is IOException)
+            {
+                _logger.LogWarning(ex, "WebSocket connection lost");
+            }
+
+            if (ct.IsCancellationRequested)
+                break;
+
+            _logger.LogInformation("Reconnecting in {Delay}s", backoff.TotalSeconds);
+
+            await Task.Delay(backoff, ct);
+            backoff = TimeSpan.FromSeconds(
+                Math.Min(backoff.TotalSeconds * 2, maxBackoff.TotalSeconds)
+            );
+        }
+    }
+
+    private async Task RecieveLoop(ClientWebSocket ws, CancellationToken ct)
+    {
+        var buffer = new ArraySegment<byte>(new byte[8192]);
+
+        while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
+        {
+            using var ms = new MemoryStream();
+            WebSocketReceiveResult result;
+            do
+            {
+                result = await ws.ReceiveAsync(buffer, ct);
+
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    _logger.LogWarning("Remote requested close of WebSocket");
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", ct);
+                    return;
+                }
+
+                ms.Write(buffer.Array!, buffer.Offset, result.Count);
+            }
+            while (!result.EndOfMessage);
+
+            if (ms.Length == 0) continue;
+
+            var text = Encoding.UTF8.GetString(ms.ToArray());
+            await _messageChannel.Writer.WriteAsync(text, ct);
+        }
+    }
+
+    private async Task ProcessMessages(CancellationToken ct)
+    {
+        await foreach (var payload in _messageChannel.Reader.ReadAllAsync(ct))
+        {
+            HandleMessage(payload);
         }
     }
 
     private void HandleMessage(string payload)
     {
-        WsEnvelope envelope;
-
+        WsEnvelope? envelope;
         try
         {
-            envelope = JsonSerializer.Deserialize<WsEnvelope>(payload)!;
+            envelope = JsonSerializer.Deserialize<WsEnvelope>(payload);
+            if (envelope == null) return;
         }
         catch (JsonException ex)
         {
@@ -83,16 +135,15 @@ public sealed class DroneWebSocketClient : BackgroundService
             case "drone":
                 HandleTelemetry(envelope);
                 break;
-
             default:
                 _logger.LogDebug("Unknown role {Role}", envelope.Role);
                 break;
         }
     }
+
     private void HandleTelemetry(WsEnvelope envelope)
     {
         DroneTelemetry? telemetry;
-
         try
         {
             telemetry = envelope.Message.Deserialize<DroneTelemetry>();
@@ -106,7 +157,6 @@ public sealed class DroneWebSocketClient : BackgroundService
         if (telemetry == null) return;
 
         _manager.ProcessTelemetry(telemetry);
-
         _logger.LogDebug(
             "Telemetry {Id}: [{Lat}, {Lng}, {Alt}]",
             envelope.Id,
