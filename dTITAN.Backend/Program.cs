@@ -35,7 +35,8 @@ var disconnectTimeout = TimeSpan.FromSeconds(5);
 builder.Services.AddSingleton(sp =>
     new DroneManager(
         sp.GetRequiredService<IDroneEventBus>(),
-        disconnectTimeout)
+        disconnectTimeout,
+        sp.GetRequiredService<ILogger<DroneManager>>())
 );
 
 // Hosted services
