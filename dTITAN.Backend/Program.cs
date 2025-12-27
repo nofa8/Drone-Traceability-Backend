@@ -1,8 +1,11 @@
+using DnsClient.Protocol;
 using dTITAN.Backend.Data;
+using dTITAN.Backend.Data.Documents;
 using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Services.Domain;
 using dTITAN.Backend.Services.Ingestion;
 using dTITAN.Backend.Services.Persistence;
+using MongoDB.Driver;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,7 +25,41 @@ builder.Logging.ClearProviders();
 builder.Host.UseSerilog();
 
 // Singletons
+// MongoDB collections
 builder.Services.AddSingleton<MongoDbContext>();
+builder.Services.AddSingleton(sp =>
+{
+    var db = sp.GetRequiredService<MongoDbContext>();
+    var collection = db.GetCollection<DroneRegistryDocument>("drone_registry");
+
+    // Ensure DroneId is unique in MongoDB
+    var keys = Builders<DroneRegistryDocument>.IndexKeys.Ascending(d => d.DroneId);
+    // XXX: Index can make start slow with large datasets
+    collection.Indexes.CreateOne(
+        new CreateIndexModel<DroneRegistryDocument>(keys, new CreateIndexOptions { Unique = true })
+    );
+    return collection;
+});
+builder.Services.AddSingleton(sp =>
+{
+    var db = sp.GetRequiredService<MongoDbContext>();
+    var collection = db.GetCollection<DroneSnapshotDocument>("drone_snapshot");
+
+    // Ensure DroneId is unique in MongoDB
+    var keys = Builders<DroneSnapshotDocument>.IndexKeys.Ascending(d => d.DroneId);
+    // XXX: Index can make start slow with large datasets
+    collection.Indexes.CreateOne(
+        new CreateIndexModel<DroneSnapshotDocument>(keys, new CreateIndexOptions { Unique = true })
+    );
+    return collection;
+});
+builder.Services.AddSingleton(sp =>
+{
+    var db = sp.GetRequiredService<MongoDbContext>();
+    return db.GetCollection<DroneTelemetryDocument>("drone_telemetry");
+});
+
+// Event bus
 builder.Services.AddSingleton<IDroneEventBus, InMemoryDroneEventBus>();
 
 // Persistence services
