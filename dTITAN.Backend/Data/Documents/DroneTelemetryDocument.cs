@@ -1,7 +1,6 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using dTITAN.Backend.Data.Events;
-using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Data.Documents;
 
@@ -13,8 +12,7 @@ public class DroneTelemetryDocument
     public string? Id { get; set; }
     public string DroneId { get; set; } = default!;
     public DateTime Timestamp { get; set; }
-
-    public GeoPoint HomeLocation { get; set; } = new GeoPoint();
+    public GeoPointDocument HomeLocation { get; set; } = new GeoPointDocument();
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double Altitude { get; set; }
@@ -34,38 +32,35 @@ public class DroneTelemetryDocument
     public bool AreMotorsOn { get; set; }
     public bool AreLightsOn { get; set; }
 
-    public static DroneTelemetryDocument FromEvent(DroneTelemetryReceived evt)
+    public DroneTelemetryDocument FromEvent(DroneTelemetryReceived evt)
     {
         var d = evt.Drone;
-        return new DroneTelemetryDocument
+        DroneId = d.Id;
+        Timestamp = evt.ReceivedAt;
+        HomeLocation = new GeoPointDocument
         {
-            DroneId = d.Id,
-            Timestamp = evt.ReceivedAt,
-            HomeLocation = new GeoPoint
-            {
-                Latitude = d.HomeLocation.Latitude,
-                Longitude = d.HomeLocation.Longitude
-            },
-            Latitude = d.Latitude,
-            Longitude = d.Longitude,
-            Altitude = d.Altitude,
-            VelocityX = d.VelocityX,
-            VelocityY = d.VelocityY,
-            VelocityZ = d.VelocityZ,
-            BatteryLevel = d.BatteryLevel,
-            BatteryTemperature = d.BatteryTemperature,
-            Heading = d.Heading,
-            SatelliteCount = d.SatelliteCount,
-            RemainingFlightTime = d.RemainingFlightTime,
-            IsTraveling = d.IsTraveling,
-            IsFlying = d.IsFlying,
-            Online = d.Online,
-            IsGoingHome = d.IsGoingHome,
-            IsHomeLocationSet = d.IsHomeLocationSet,
-            AreMotorsOn = d.AreMotorsOn,
-            AreLightsOn = d.AreLightsOn
+            Latitude = d.HomeLocation.Latitude,
+            Longitude = d.HomeLocation.Longitude
         };
+        Latitude = d.Latitude;
+        Longitude = d.Longitude;
+        Altitude = d.Altitude;
+        VelocityX = d.VelocityX;
+        VelocityY = d.VelocityY;
+        VelocityZ = d.VelocityZ;
+        BatteryLevel = d.BatteryLevel;
+        BatteryTemperature = d.BatteryTemperature;
+        Heading = d.Heading;
+        SatelliteCount = d.SatelliteCount;
+        RemainingFlightTime = d.RemainingFlightTime;
+        IsTraveling = d.IsTraveling;
+        IsFlying = d.IsFlying;
+        Online = d.Online;
+        IsGoingHome = d.IsGoingHome;
+        IsHomeLocationSet = d.IsHomeLocationSet;
+        AreMotorsOn = d.AreMotorsOn;
+        AreLightsOn = d.AreLightsOn;
+
+        return this;
     }
-
-
 }

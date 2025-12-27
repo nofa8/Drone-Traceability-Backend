@@ -6,7 +6,8 @@
 
 SESSION="dTITAN"
 BACKEND_CMD="cd dTITAN.Backend && dotnet run"
-SIMULATOR_CMD="cd simulator && ./tui-drone-simulation.js"
+SIMULATOR_CMD="cd dev-tools/simulator && ./tui-drone-simulation.js"
+DEVTOOLS_CMD="cd dev-tools"
 
 # ---------------- Check dependencies ----------------
 for cmd in tmux lazydocker; do
@@ -23,13 +24,20 @@ fi
 # ---------------- Window 1: Horizontal split first ----------------
 tmux new-session -d -s "$SESSION" -n "Workspace"
 
-# Split horizontally: left = left pane backend, right = simulator
-tmux split-window -h -l 10 -t "$SESSION:1.1"
-tmux send-keys -t "$SESSION:1.1" "$BACKEND_CMD" C-m
-tmux send-keys -t "$SESSION:1.2" "$SIMULATOR_CMD" C-m
+# Split horizontally: left = backend, right = simulator + devtools
+tmux split-window -h -l 20 -t "$SESSION:1.1"
 
-# Optional: select right pane by default
+# Send backend command to left pane (1.1)
+tmux send-keys -t "$SESSION:1.1" "$BACKEND_CMD" C-m
+
+# Split right pane vertically: top = simulator, bottom = devtools
+tmux split-window -v -l 10 -t "$SESSION:1.2"
+tmux send-keys -t "$SESSION:1.2" "$SIMULATOR_CMD" C-m
+tmux send-keys -t "$SESSION:1.3" "$DEVTOOLS_CMD" C-m
+
+# Optional: select right-top pane (simulator) by default
 tmux select-pane -t "$SESSION:1.2"
+
 
 # ---------------- Window 2: LazyDocker ----------------
 tmux new-window -t "$SESSION:2" -n "LazyDocker"
