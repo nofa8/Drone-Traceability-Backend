@@ -1,12 +1,11 @@
-using DnsClient.Protocol;
+using MongoDB.Driver;
+using Serilog;
 using dTITAN.Backend.Data;
 using dTITAN.Backend.Data.Documents;
 using dTITAN.Backend.EventBus;
 using dTITAN.Backend.Services.Domain;
 using dTITAN.Backend.Services.Ingestion;
 using dTITAN.Backend.Services.Persistence;
-using MongoDB.Driver;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -87,23 +86,24 @@ builder.Services.AddHostedService(sp =>
 // Domain / optional services
 builder.Services.AddScoped<IDroneService, DroneService>();
 
-// Controllers / Swagger
+// Controllers and Documentation
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.MapOpenApi();
+
+// XXX: HTTPS redirection requires proper certs.
+// app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
 
 // Ensure persistence writers are constructed so they subscribe to events
 app.Services.GetRequiredService<DroneTelemetryWriter>();
 app.Services.GetRequiredService<DroneRegistryWriter>();
 app.Services.GetRequiredService<DroneSnapshotWriter>();
-
-// Middleware
-app.UseHttpsRedirection();
-app.UseAuthorization();
-
-// REST API
-app.MapControllers();
 
 // Run
 try
