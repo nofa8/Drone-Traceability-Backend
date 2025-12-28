@@ -2,7 +2,7 @@ namespace dTITAN.Backend.Data.Mongo.Documents;
 
 
 /// <summary>
-/// Represents a snapshot of the latest telemetry of a drone,
+/// Represents a snapshot of the latest telemetry of a drone and metadata of the drone,
 /// inheriting from DroneTelemetryDocument.
 /// </summary>
 public class DroneSnapshotDocument : DroneTelemetryDocument
