@@ -54,7 +54,7 @@ public class DroneSnapshotController(
     /// A <see cref="PagedResult{DroneSnapshotDocument}"/> containing telemetry items and pagination cursors.
     /// Items are always returned sorted by <c>Timestamp</c> (latest first).
     /// </returns>
-    [HttpGet("snapshots")]
+    [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResult<DroneSnapshotDocument>>> GetAll(
         [FromQuery] CursorPageRequest pageRequest,
@@ -91,7 +91,7 @@ public class DroneSnapshotController(
     /// The latest <see cref="DroneSnapshotDocument"/> for the given drone,
     /// or <c>404 Not Found</c> if no snapshot exists.
     /// </returns>
-    [HttpGet("/{droneId}/snapshot")]
+    [HttpGet("/{droneId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<DroneSnapshotDocument>> Get(string droneId)

@@ -35,7 +35,7 @@ async function fetchTelemetry({
   if (to) params.set("to", to);
 
   // const url = `${BASE_URL}/api/drones/${droneId}/telemetry?${params.toString()}`;
-  const url = `${BASE_URL}/api/drones/snapshots?isConnected=true&${params.toString()}`;
+  const url = `${BASE_URL}/api/drones?isConnected=true&${params.toString()}`;
 
   console.log("url:", url);
   try {
