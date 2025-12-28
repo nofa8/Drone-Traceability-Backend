@@ -1,14 +1,11 @@
-
-using dTITAN.Backend.Data.Documents;
-
 namespace dTITAN.Backend.Data.Models;
 
-public class TelemetryPage
+public class PagedResult<T>
 {
     /// <summary>
-    /// The list of telemetry documents returned for this page.
+    /// The list of <typeparamref name="T"/> documents returned for this page.
     /// </summary>
-    public List<DroneTelemetryDocument> Items { get; set; } = [];
+    public List<T> Items { get; set; } = [];
 
     /// <summary>
     /// Timestamp of the oldest document in this page. Use as cursor for previous page.

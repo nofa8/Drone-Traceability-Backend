@@ -1,6 +1,6 @@
 using MongoDB.Driver;
 
-namespace dTITAN.Backend.Data;
+namespace dTITAN.Backend.Data.Mongo;
 
 public class MongoDbContext
 {

@@ -1,6 +1,6 @@
-using dTITAN.Backend.Data.Events;
+using dTITAN.Backend.Data.Models;
 
-namespace dTITAN.Backend.EventBus;
+namespace dTITAN.Backend.Services.EventBus;
 
 public interface IDroneEventBus
 {

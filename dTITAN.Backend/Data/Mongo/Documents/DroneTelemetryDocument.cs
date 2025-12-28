@@ -1,8 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using dTITAN.Backend.Data.Events;
 
-namespace dTITAN.Backend.Data.Documents;
+namespace dTITAN.Backend.Data.Mongo.Documents;
 
 public class DroneTelemetryDocument
 {
@@ -31,36 +30,4 @@ public class DroneTelemetryDocument
     public bool IsHomeLocationSet { get; set; }
     public bool AreMotorsOn { get; set; }
     public bool AreLightsOn { get; set; }
-
-    public DroneTelemetryDocument FromEvent(DroneTelemetryReceived evt)
-    {
-        var d = evt.Drone;
-        DroneId = d.Id;
-        Timestamp = evt.ReceivedAt;
-        HomeLocation = new GeoPointDocument
-        {
-            Latitude = d.HomeLocation.Latitude,
-            Longitude = d.HomeLocation.Longitude
-        };
-        Latitude = d.Latitude;
-        Longitude = d.Longitude;
-        Altitude = d.Altitude;
-        VelocityX = d.VelocityX;
-        VelocityY = d.VelocityY;
-        VelocityZ = d.VelocityZ;
-        BatteryLevel = d.BatteryLevel;
-        BatteryTemperature = d.BatteryTemperature;
-        Heading = d.Heading;
-        SatelliteCount = d.SatelliteCount;
-        RemainingFlightTime = d.RemainingFlightTime;
-        IsTraveling = d.IsTraveling;
-        IsFlying = d.IsFlying;
-        Online = d.Online;
-        IsGoingHome = d.IsGoingHome;
-        IsHomeLocationSet = d.IsHomeLocationSet;
-        AreMotorsOn = d.AreMotorsOn;
-        AreLightsOn = d.AreLightsOn;
-
-        return this;
-    }
 }

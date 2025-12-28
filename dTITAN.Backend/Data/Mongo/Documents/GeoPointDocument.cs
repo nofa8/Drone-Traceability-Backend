@@ -1,6 +1,6 @@
 using dTITAN.Backend.Data.Models;
 
-namespace dTITAN.Backend.Data.Documents;
+namespace dTITAN.Backend.Data.Mongo.Documents;
 
 public class GeoPointDocument : IEquatable<GeoPoint>
 {
