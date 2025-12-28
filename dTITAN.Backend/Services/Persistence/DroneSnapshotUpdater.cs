@@ -21,8 +21,13 @@ public class DroneSnapshotUpdater
         var d = evt.Drone;
         var ts = evt.ReceivedAt;
 
-        var filter = Builders<DroneSnapshotDocument>.Filter
-            .Eq(s => s.DroneId, d.Id);
+        var filter = Builders<DroneSnapshotDocument>.Filter.And(
+            Builders<DroneSnapshotDocument>.Filter.Eq(s => s.DroneId, d.Id),
+            Builders<DroneSnapshotDocument>.Filter.Or(
+                Builders<DroneSnapshotDocument>.Filter.Lt(s => s.Timestamp, ts),
+                Builders<DroneSnapshotDocument>.Filter.Exists(s => s.Timestamp, false)
+            )
+        );
 
         var update = Builders<DroneSnapshotDocument>.Update
             .Set(s => s.Model, d.Model)
@@ -53,7 +58,6 @@ public class DroneSnapshotUpdater
             update,
             new UpdateOptions { IsUpsert = true }
         );
-
     }
     private async Task HandleDroneDisconnected(DroneDisconnected evt)
     {
