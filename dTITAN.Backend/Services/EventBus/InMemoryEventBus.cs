@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
-using dTITAN.Backend.Data.Events;
+using dTITAN.Backend.Data.Models;
 
-namespace dTITAN.Backend.EventBus;
-
+namespace dTITAN.Backend.Services.EventBus;
 
 public class InMemoryDroneEventBus(ILogger<InMemoryDroneEventBus> logger) : IDroneEventBus
 {

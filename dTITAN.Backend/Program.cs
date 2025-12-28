@@ -1,11 +1,10 @@
 using MongoDB.Driver;
 using Serilog;
-using dTITAN.Backend.Data;
-using dTITAN.Backend.Data.Documents;
-using dTITAN.Backend.EventBus;
-using dTITAN.Backend.Services.Domain;
 using dTITAN.Backend.Services.Ingestion;
 using dTITAN.Backend.Services.Persistence;
+using dTITAN.Backend.Data.Mongo.Documents;
+using dTITAN.Backend.Data.Mongo;
+using dTITAN.Backend.Services.EventBus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,15 +28,7 @@ builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton(sp =>
 {
     var db = sp.GetRequiredService<MongoDbContext>();
-    var collection = db.GetCollection<DroneRegistryDocument>("drone_registry");
-
-    // Ensure DroneId is unique in MongoDB
-    var keys = Builders<DroneRegistryDocument>.IndexKeys.Ascending(d => d.DroneId);
-    // XXX: Index can make start slow with large datasets
-    collection.Indexes.CreateOne(
-        new CreateIndexModel<DroneRegistryDocument>(keys, new CreateIndexOptions { Unique = true })
-    );
-    return collection;
+    return db.GetCollection<DroneTelemetryDocument>("drone_telemetry");
 });
 builder.Services.AddSingleton(sp =>
 {
@@ -52,19 +43,13 @@ builder.Services.AddSingleton(sp =>
     );
     return collection;
 });
-builder.Services.AddSingleton(sp =>
-{
-    var db = sp.GetRequiredService<MongoDbContext>();
-    return db.GetCollection<DroneTelemetryDocument>("drone_telemetry");
-});
 
 // Event bus
 builder.Services.AddSingleton<IDroneEventBus, InMemoryDroneEventBus>();
 
 // Persistence services
 builder.Services.AddSingleton<DroneTelemetryWriter>();
-builder.Services.AddSingleton<DroneRegistryWriter>();
-builder.Services.AddSingleton<DroneSnapshotWriter>();
+builder.Services.AddSingleton<DroneSnapshotUpdater>();
 
 // Ingestion services
 var disconnectTimeout = TimeSpan.FromSeconds(5);
@@ -83,9 +68,6 @@ builder.Services.AddHostedService(sp =>
         disconnectTimeout)
 );
 
-// Domain / optional services
-builder.Services.AddScoped<IDroneService, DroneService>();
-
 // Controllers and Documentation
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -102,8 +84,7 @@ app.MapControllers();
 
 // Ensure persistence writers are constructed so they subscribe to events
 app.Services.GetRequiredService<DroneTelemetryWriter>();
-app.Services.GetRequiredService<DroneRegistryWriter>();
-app.Services.GetRequiredService<DroneSnapshotWriter>();
+app.Services.GetRequiredService<DroneSnapshotUpdater>();
 
 // Run
 try

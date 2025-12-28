@@ -9,9 +9,6 @@ if (!droneId) {
 const BASE_URL = `http://localhost:5101`;
 // const BASE_URL = `https://localhost:7008`;
 
-console.log("droneId:", droneId);
-console.log("url:", BASE_URL);
-
 /**
  * Calls the telemetry endpoint with cursor-based pagination.
  *
@@ -37,8 +34,10 @@ async function fetchTelemetry({
   if (from) params.set("from", from);
   if (to) params.set("to", to);
 
-  const url = `${BASE_URL}/api/drones/${droneId}/telemetry?${params.toString()}`;
+  // const url = `${BASE_URL}/api/drones/${droneId}/telemetry?${params.toString()}`;
+  const url = `${BASE_URL}/api/drones/snapshots?isConnected=true&${params.toString()}`;
 
+  console.log("url:", url);
   try {
     const res = await fetch(url);
 
@@ -59,7 +58,7 @@ async function main() {
   const page1 = await fetchTelemetry({ limit: 50 });
   if (!page1) return;
 
-  console.log("Page 1 results:", page1.items.length);
+  console.log("Page 1 results:\n", page1.items);
   console.log("NextCursor:", page1.nextCursor);
   console.log("PrevCursor:", page1.prevCursor);
 
@@ -73,7 +72,7 @@ async function main() {
     });
 
     if (!page2) return;
-    console.log("Page 2 results:", page2.items.length);
+    console.log("Page 2 results:\n", page2.items);
     console.log("NextCursor:", page2.nextCursor);
     console.log("PrevCursor:", page2.prevCursor);
   }
@@ -87,11 +86,10 @@ async function main() {
     });
 
     if (!page3) return;
-    console.log("Page 3 results:", page3.items.length);
+    console.log("Page 3 results:\n", page3.items);
     console.log("NextCursor:", page3.nextCursor);
     console.log("PrevCursor:", page3.prevCursor);
   }
 }
-
 
 main();

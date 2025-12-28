@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
-using dTITAN.Backend.Data.Events;
 using dTITAN.Backend.Data.Models;
-using dTITAN.Backend.EventBus;
+using dTITAN.Backend.Services.EventBus;
 
 namespace dTITAN.Backend.Services.Ingestion;
 
@@ -17,11 +16,7 @@ public sealed class DroneManager(IDroneEventBus eventBus, TimeSpan timeout, ILog
         var now = DateTime.UtcNow;
         var id = telemetry.Id;
 
-        var session = _sessions.GetOrAdd(id, _ =>
-        {
-            _eventBus.Publish(new DroneConnected(telemetry, now));
-            return new DroneSession(id, now);
-        });
+        var session = _sessions.GetOrAdd(id, _ => new DroneSession(id, now));
 
         session.LastSeen = now;
         _logger.LogDebug(
