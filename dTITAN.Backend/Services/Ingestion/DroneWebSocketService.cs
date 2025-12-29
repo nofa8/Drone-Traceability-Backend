@@ -2,8 +2,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
-using dTITAN.Backend.Data.Models;
-using dTITAN.Backend.Data.Websockets;
+using dTITAN.Backend.Data.Transport.Websockets;
 
 namespace dTITAN.Backend.Services.Ingestion;
 
@@ -106,10 +105,10 @@ public sealed class DroneWebSocketClient : BackgroundService
     {
         await foreach (var payload in _messageChannel.Reader.ReadAllAsync(ct))
         {
-            WsEnvelope? envelope;
+            ExternalEnvelopeWs? envelope;
             try
             {
-                envelope = JsonSerializer.Deserialize<WsEnvelope>(payload);
+                envelope = JsonSerializer.Deserialize<ExternalEnvelopeWs>(payload);
                 if (envelope == null) continue;
             }
             catch (JsonException ex)
@@ -123,12 +122,12 @@ public sealed class DroneWebSocketClient : BackgroundService
         }
     }
 
-    private void HandleTelemetry(WsEnvelope envelope)
+    private void HandleTelemetry(ExternalEnvelopeWs envelope)
     {
-        DroneTelemetry? telemetry;
+        DroneTelemetryWs? telemetry;
         try
         {
-            telemetry = envelope.Message.Deserialize<DroneTelemetry>();
+            telemetry = envelope.Message.Deserialize<DroneTelemetryWs>();
         }
         catch (JsonException ex)
         {

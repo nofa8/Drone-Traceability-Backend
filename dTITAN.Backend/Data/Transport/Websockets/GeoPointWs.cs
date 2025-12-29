@@ -1,14 +1,16 @@
-using dTITAN.Backend.Data.Models;
+using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Mongo.Documents;
+namespace dTITAN.Backend.Data.Transport.Websockets;
 
-public class GeoPointDocument : IEquatable<GeoPoint>
+public class GeoPointWs
 {
+    [JsonPropertyName("lat")]
     public double Latitude { get; set; }
 
+    [JsonPropertyName("lng")]
     public double Longitude { get; set; }
 
-    public bool Equals(GeoPoint? other)
+    public bool Equals(GeoPointWs other)
     {
         return other != null &&
                Latitude == other.Latitude &&

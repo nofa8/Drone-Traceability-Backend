@@ -1,71 +1,17 @@
-using System.Text.Json.Serialization;
+using dTITAN.Backend.Data.Transport.Websockets;
 
 namespace dTITAN.Backend.Data.Models;
 
-public class DroneTelemetry
+public sealed class DroneTelemetry
 {
-    // Drone Metadata
-    [JsonPropertyName("id")]
-    required public string Id { get; set; }
+    public string DroneId { get; init; } = default!;
+    public string Model { get; set; } = default!;
+    public Telemetry Telemetry { get; set; } = default!;
 
-    [JsonPropertyName("model")]
-    public string Model { get; set; } = "";
-
-    // Drone State
-    [JsonPropertyName("homeLocation")]
-    public GeoPoint HomeLocation { get; set; } = new GeoPoint();
-    
-    [JsonPropertyName("lat")]
-    public double Latitude { get; set; }
-
-    [JsonPropertyName("lng")]
-    public double Longitude { get; set; }
-
-    [JsonPropertyName("alt")]
-    public double Altitude { get; set; }
-
-    [JsonPropertyName("velX")]
-    public double VelocityX { get; set; }
-
-    [JsonPropertyName("velY")]
-    public double VelocityY { get; set; }
-
-    [JsonPropertyName("velZ")]
-    public double VelocityZ { get; set; }
-
-    [JsonPropertyName("batLvl")]
-    public double BatteryLevel { get; set; }
-
-    [JsonPropertyName("batTemperature")]
-    public double BatteryTemperature { get; set; }
-
-    [JsonPropertyName("hdg")]
-    public double Heading { get; set; }
-
-    [JsonPropertyName("satCount")]
-    public int SatelliteCount { get; set; }
-
-    [JsonPropertyName("rft")]
-    public int RemainingFlightTime { get; set; }
-
-    [JsonPropertyName("isTraveling")]
-    public bool IsTraveling { get; set; }
-
-    [JsonPropertyName("isFlying")]
-    public bool IsFlying { get; set; }
-
-    [JsonPropertyName("online")]
-    public bool Online { get; set; }
-
-    [JsonPropertyName("isGoingHome")]
-    public bool IsGoingHome { get; set; }
-
-    [JsonPropertyName("isHomeLocationSet")]
-    public bool IsHomeLocationSet { get; set; }
-
-    [JsonPropertyName("areMotorsOn")]
-    public bool AreMotorsOn { get; set; }
-
-    [JsonPropertyName("areLightsOn")]
-    public bool AreLightsOn { get; set; }
+    public static DroneTelemetry From(DroneTelemetryWs ws, DateTime timestamp) => new()
+    {
+        DroneId = ws.Id,
+        Model = ws.Model,
+        Telemetry = Telemetry.From(ws, timestamp)
+    };
 }
