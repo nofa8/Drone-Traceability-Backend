@@ -54,10 +54,10 @@ docker compose -f docker-compose.dev.yml up --build -d
 
 Then run the backend on your machine, connecting to the Docker services:
 
+> Run `./tmux-project.sh` from the repository root, this opens panes for the backend, simulator and a docker UI.
+> This script requires `tmux` and `lazydocker`, you can always edit it to not use `lazydocker`
+
 ```bash
 cd dTITAN.Backend
 dotnet run
 ```
-
-> Run `./tmux-project.sh` from the repository root, this opens panes for the backend, simulator and a docker UI.
-> This script requires `tmux` and `lazydocker`, you can always edit it to not use `lazydocker`
