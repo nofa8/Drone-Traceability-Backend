@@ -105,10 +105,10 @@ public sealed class DroneWebSocketClient : BackgroundService
     {
         await foreach (var payload in _messageChannel.Reader.ReadAllAsync(ct))
         {
-            ExternalEnvelopeWs? envelope;
+            ExternalEnvelope? envelope;
             try
             {
-                envelope = JsonSerializer.Deserialize<ExternalEnvelopeWs>(payload);
+                envelope = JsonSerializer.Deserialize<ExternalEnvelope>(payload);
                 if (envelope == null) continue;
             }
             catch (JsonException ex)
@@ -122,7 +122,7 @@ public sealed class DroneWebSocketClient : BackgroundService
         }
     }
 
-    private void HandleTelemetry(ExternalEnvelopeWs envelope)
+    private void HandleTelemetry(ExternalEnvelope envelope)
     {
         DroneTelemetryWs? telemetry;
         try
