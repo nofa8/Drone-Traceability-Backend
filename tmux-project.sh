@@ -7,6 +7,7 @@
 SESSION="dTITAN"
 BACKEND_CMD="cd dTITAN.Backend && dotnet run"
 SIMULATOR_CMD="cd simulator && ./tui-drone-simulation.js"
+DOCKER_CMD="docker compose -f docker-compose.dev.yml up -d && lazydocker"
 
 # ---------------- Check dependencies ----------------
 for cmd in tmux lazydocker; do
@@ -34,7 +35,7 @@ tmux select-pane -t "$SESSION:1.2"
 
 # ---------------- Window 2: LazyDocker ----------------
 tmux new-window -t "$SESSION:2" -n "LazyDocker"
-tmux send-keys -t "$SESSION:2.1" "docker compose up -d && lazydocker" C-m
+tmux send-keys -t "$SESSION:2.1" "$DOCKER_CMD" C-m
 
 # ---------------- Window 3: Terminal ----------------
 tmux new-window -t "$SESSION:3" -n "Terminal"
