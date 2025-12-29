@@ -23,7 +23,7 @@ Lightweight instructions to run the dTITAN backend locally (Docker or dotnet).
 ### Database
 
 - Mongo GUI (mongo-express): <http://localhost:8090> (username `admin`, password `admin`)
-- Mongo DB shell / clients: connect to <mongodb://localhost:27017>
+- Mongo DB shell / clients: <mongodb://localhost:27017>
 
 ## Run everything with Docker Compose
 
