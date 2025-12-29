@@ -1,13 +1,14 @@
 using System.Collections.Concurrent;
 using dTITAN.Backend.Data.Models;
+using dTITAN.Backend.Data.Models.Events;
 using dTITAN.Backend.Data.Transport.Websockets;
 using dTITAN.Backend.Services.EventBus;
 
 namespace dTITAN.Backend.Services.Ingestion;
 
-public sealed class DroneManager(IDroneEventBus eventBus, TimeSpan timeout, ILogger<DroneManager> logger)
+public sealed class DroneManager(IEventBus eventBus, TimeSpan timeout, ILogger<DroneManager> logger)
 {
-    private readonly IDroneEventBus _eventBus = eventBus;
+    private readonly IEventBus _eventBus = eventBus;
     private readonly TimeSpan _timeout = timeout;
     private readonly ILogger<DroneManager> _logger = logger;
     private readonly ConcurrentDictionary<string, DroneSession> _sessions = new();

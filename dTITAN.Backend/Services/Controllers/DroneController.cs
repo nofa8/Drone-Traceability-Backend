@@ -56,7 +56,7 @@ public class DroneController(
     /// </returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<PagedResult<Drone>>> GetAll(
+    public async Task<ActionResult<PagedResult<DroneSnapshot>>> GetAll(
         [FromQuery] CursorPageRequest pageRequest,
         [FromQuery] bool? isConnected = null)
     {
@@ -112,13 +112,13 @@ public class DroneController(
             .Find(filter)
             .Sort(sort)
             .Limit(limit)
-            .Project<Drone>(Builders<DroneSnapshotDocument>.Projection
+            .Project<DroneSnapshot>(Builders<DroneSnapshotDocument>.Projection
                 .Exclude(d => d.Id))
             .ToListAsync();
 
         if (pageRequest.Forward) docs.Reverse();
 
-        var page = new PagedResult<Drone>
+        var page = new PagedResult<DroneSnapshot>
         {
             Items = docs,
             PrevCursor = docs.LastOrDefault()?.Telemetry.Timestamp,
@@ -134,18 +134,18 @@ public class DroneController(
     /// The unique identifier of the drone.
     /// </param>
     /// <returns>
-    /// The latest <see cref="Drone"/> for the given drone,
+    /// The latest <see cref="DroneSnapshot"/> for the given drone,
     /// or <c>404 Not Found</c> if no snapshot exists.
     /// </returns>
     [HttpGet("{droneId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Drone>> Get(string droneId)
+    public async Task<ActionResult<DroneSnapshot>> Get(string droneId)
     {
         _logger.LogInformation("Fetching telemetry snapshot for DroneId={DroneId}", droneId);
         var doc = await _snapshots
             .Find(d => d.DroneId == droneId)
-            .Project<Drone>(Builders<DroneSnapshotDocument>.Projection
+            .Project<DroneSnapshot>(Builders<DroneSnapshotDocument>.Projection
                 .Exclude(d => d.Id))
             .FirstOrDefaultAsync();
 
