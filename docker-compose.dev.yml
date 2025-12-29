@@ -30,22 +30,6 @@ services:
     depends_on:
       - mongodb
 
-  backend:
-    build:
-      context: ./dTITAN.Backend
-      dockerfile: Dockerfile
-    container_name: dtitan-backend
-    restart: unless-stopped
-    ports:
-      - "5101:5101"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__MongoDb: "mongodb://mongodb:27017"
-      ConnectionStrings__DroneWS: "ws://websocket-iouv:8080"
-    depends_on:
-      - mongodb
-      - external-websocket
-
   # XXX: Not being used for now
   # redis:
   #   image: redis:7
