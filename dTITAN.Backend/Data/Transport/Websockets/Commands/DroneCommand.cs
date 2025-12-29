@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Websockets.Commands;
+namespace dTITAN.Backend.Data.Transport.Websockets.Commands;
 
 /// <summary>
 /// Base type for WebSocket drone commands. Derived types provide payload

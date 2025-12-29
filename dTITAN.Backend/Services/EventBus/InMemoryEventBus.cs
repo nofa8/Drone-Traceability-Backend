@@ -46,6 +46,6 @@ public class InMemoryDroneEventBus(ILogger<InMemoryDroneEventBus> logger) : IDro
 
     public void Unsubscribe<TEvent>(Func<TEvent, Task> handler) where TEvent : IDroneEvent
     {
-        _logger?.LogWarning("Unsubscribe is not implemented");
+        throw new NotImplementedException("Unsubscribe is not implemented in InMemoryDroneEventBus");
     }
 }

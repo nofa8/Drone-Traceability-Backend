@@ -1,4 +1,4 @@
-namespace dTITAN.Backend.Data.Websockets.Commands;
+namespace dTITAN.Backend.Data.Transport.Websockets.Commands;
 
 public sealed class VirtualSticksCommand : DroneCommand
 {

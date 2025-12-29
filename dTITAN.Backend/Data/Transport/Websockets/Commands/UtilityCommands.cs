@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Websockets.Commands;
+namespace dTITAN.Backend.Data.Transport.Websockets.Commands;
 
 /// <summary>
 /// Command to arm or disarm the motors.

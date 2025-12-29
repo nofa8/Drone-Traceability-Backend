@@ -2,9 +2,8 @@ using MongoDB.Driver;
 using Serilog;
 using dTITAN.Backend.Services.Ingestion;
 using dTITAN.Backend.Services.Persistence;
-using dTITAN.Backend.Data.Mongo.Documents;
-using dTITAN.Backend.Data.Mongo;
 using dTITAN.Backend.Services.EventBus;
+using dTITAN.Backend.Data.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 

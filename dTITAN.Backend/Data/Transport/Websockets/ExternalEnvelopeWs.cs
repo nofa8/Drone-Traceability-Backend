@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Websockets;
+namespace dTITAN.Backend.Data.Transport.Websockets;
 
-public sealed class WsEnvelope
+public sealed class ExternalEnvelopeWs
 {
     // UserId = Drone Id
     [JsonPropertyName("userId")]

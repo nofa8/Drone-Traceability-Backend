@@ -1,4 +1,4 @@
-namespace dTITAN.Backend.Data.Models;
+namespace dTITAN.Backend.Data.Transport.Rest;
 
 public class PagedResult<T>
 {

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Websockets.Commands.Enums;
+namespace dTITAN.Backend.Data.Transport.Websockets.Enums;
 
 /**
  * XXX:

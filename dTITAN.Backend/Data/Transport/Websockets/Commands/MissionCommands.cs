@@ -1,8 +1,7 @@
 using System.Text.Json.Serialization;
-using dTITAN.Backend.Data.Models;
-using dTITAN.Backend.Data.Websockets.Commands.Enums;
+using dTITAN.Backend.Data.Transport.Websockets.Enums;
 
-namespace dTITAN.Backend.Data.Websockets.Commands;
+namespace dTITAN.Backend.Data.Transport.Websockets.Commands;
 
 /// <summary>
 /// Command to start a mission profile containing waypoints and actions.
@@ -39,7 +38,7 @@ public sealed class StartMissionCommand : DroneCommand
     /// Ordered list of waypoints comprising the mission path.
     /// </summary>
     [JsonPropertyName("path")]
-    public List<GeoPoint> Path { get; set; } = [];
+    public List<GeoPointWs> Path { get; set; } = [];
 
     /// <summary>
     /// Initial mission status.
