@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using dTITAN.Backend.Data.Models;
 using dTITAN.Backend.Data.Models.Events;
+using dTITAN.Backend.Data.Transport.Websockets;
 using dTITAN.Backend.Services.EventBus;
 
 namespace dTITAN.Backend.Services.ClientGateway;
@@ -58,7 +59,8 @@ public class ClientConnectionManager
             await RemoveClient(target);
             return;
         }
-        await Send(socket, evt);
+        // XXX: Send command event
+        await Send(socket, EventEnvelope.From(evt));
     }
 
     private async Task BroadcastToAll(IBroadcastEvent evt)
@@ -71,14 +73,14 @@ public class ClientConnectionManager
                 dead.Add(id);
                 continue;
             }
-            await Send(socket, evt);
+            await Send(socket, EventEnvelope.From(evt));
         }
         foreach (var id in dead) await RemoveClient(id);
     }
 
-    private static async Task Send(WebSocket socket, object payload)
+    private static async Task Send(WebSocket socket, EventEnvelope eventEnvelope)
     {
-        var json = JsonSerializer.Serialize(payload);
+        var json = JsonSerializer.Serialize(eventEnvelope);
         var bytes = Encoding.UTF8.GetBytes(json);
         await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
     }

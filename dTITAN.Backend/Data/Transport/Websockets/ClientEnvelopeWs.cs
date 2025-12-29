@@ -1,13 +1,17 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using dTITAN.Backend.Data.Models.Events;
 
 namespace dTITAN.Backend.Data.Transport.Websockets;
 
-public sealed class ClientEnvelopeWs
+public sealed class EventEnvelope
 {
-    [JsonPropertyName("type")]
-    public required string Type { get; set; }
+    public DateTime TimeStamp { get; set; } = default!;
+    public string EventType { get; set; } = default!;
+    public object Payload { get; set; } = default!;
 
-    [JsonPropertyName("message")]
-    public required JsonElement Message { get; set; }
+    public static EventEnvelope From(IEvent evt) => new()
+    {
+        TimeStamp = evt.TimeStamp,
+        EventType = evt.EventType,
+        Payload = evt.ToPayload()
+    };
 }
