@@ -2,7 +2,7 @@ using dTITAN.Backend.Data.Transport.Websockets;
 
 namespace dTITAN.Backend.Data.Models;
 
-public sealed class DroneTelemetry
+public class DroneTelemetry
 {
     public string DroneId { get; init; } = default!;
     public string Model { get; set; } = default!;

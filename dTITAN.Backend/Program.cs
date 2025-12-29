@@ -4,6 +4,7 @@ using dTITAN.Backend.Services.Ingestion;
 using dTITAN.Backend.Services.Persistence;
 using dTITAN.Backend.Services.EventBus;
 using dTITAN.Backend.Data.Persistence;
+using dTITAN.Backend.Services.ClientGateway;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,7 +45,7 @@ builder.Services.AddSingleton(sp =>
 });
 
 // Event bus
-builder.Services.AddSingleton<IDroneEventBus, InMemoryDroneEventBus>();
+builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
 
 // Persistence services
 builder.Services.AddSingleton<DroneTelemetryWriter>();
@@ -54,10 +55,14 @@ builder.Services.AddSingleton<DroneSnapshotUpdater>();
 var disconnectTimeout = TimeSpan.FromSeconds(5);
 builder.Services.AddSingleton(sp =>
     new DroneManager(
-        sp.GetRequiredService<IDroneEventBus>(),
+        sp.GetRequiredService<IEventBus>(),
         disconnectTimeout,
         sp.GetRequiredService<ILogger<DroneManager>>())
 );
+
+// Client Gateway services
+builder.Services.AddSingleton<ClientConnectionManager>();
+builder.Services.AddSingleton<ClientWebSocketService>();
 
 // Hosted services
 builder.Services.AddHostedService<DroneWebSocketClient>();
@@ -74,16 +79,36 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-app.MapOpenApi();
+// Enable WebSockets
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(30)
+});
 
+// Map WebSocket endpoint
+app.Map("/ws", async context =>
+{
+    var wsService = context.RequestServices.GetRequiredService<ClientWebSocketService>();
+    await wsService.HandleClientAsync(context);
+});
+
+app.MapOpenApi();
 // XXX: HTTPS redirection requires proper certs.
 // app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
-// Ensure persistence writers are constructed so they subscribe to events
+// Ensure services are constructed so they subscribe to events
+app.Services.GetRequiredService<ClientConnectionManager>();
 app.Services.GetRequiredService<DroneTelemetryWriter>();
 app.Services.GetRequiredService<DroneSnapshotUpdater>();
+
+// Graceful shutdown for WebSocket service
+app.Lifetime.ApplicationStopping.Register(async () =>
+{
+    var wsService = app.Services.GetRequiredService<ClientWebSocketService>();
+    await wsService.DisposeAsync();
+});
 
 // Run
 try

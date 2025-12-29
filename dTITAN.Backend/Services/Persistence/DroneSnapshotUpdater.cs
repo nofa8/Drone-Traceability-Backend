@@ -1,7 +1,8 @@
 using MongoDB.Driver;
-using dTITAN.Backend.Data.Models;
 using dTITAN.Backend.Services.EventBus;
 using dTITAN.Backend.Data.Persistence;
+using dTITAN.Backend.Data.Models.Events;
+using MongoDB.Bson;
 
 namespace dTITAN.Backend.Services.Persistence;
 
@@ -9,41 +10,58 @@ public class DroneSnapshotUpdater
 {
     private readonly IMongoCollection<DroneSnapshotDocument> _snapshots;
 
-    public DroneSnapshotUpdater(IMongoCollection<DroneSnapshotDocument> snapshots, IDroneEventBus eventBus)
+    public DroneSnapshotUpdater(IMongoCollection<DroneSnapshotDocument> snapshots, IEventBus eventBus)
     {
         _snapshots = snapshots;
         eventBus.Subscribe<DroneTelemetryReceived>(HandleTelemetryReceived);
         eventBus.Subscribe<DroneDisconnected>(HandleDroneDisconnected);
     }
 
+
     private async Task HandleTelemetryReceived(DroneTelemetryReceived evt)
     {
         var d = evt.DroneTelemetry;
-        var t = evt.DroneTelemetry.Telemetry;
-        var ts = evt.TimeStamp;
+        var telemetry = d.Telemetry;
+        var telemetryBson = telemetry.ToBsonDocument();
 
-        var filter = Builders<DroneSnapshotDocument>.Filter.And(
-            Builders<DroneSnapshotDocument>.Filter.Eq(s => s.DroneId, d.DroneId),
-            Builders<DroneSnapshotDocument>.Filter.Or(
-                Builders<DroneSnapshotDocument>.Filter.Lt(s => s.Telemetry.Timestamp, ts),
-                Builders<DroneSnapshotDocument>.Filter.Exists(s => s.Telemetry, false)
-            )
+        var f = Builders<DroneSnapshotDocument>.Filter;
+        var filter = f.And(
+            f.Eq(x => x.DroneId, d.DroneId),
+            f.Lt(x => x.Telemetry.Timestamp, telemetry.Timestamp)
         );
-
 
         var update = Builders<DroneSnapshotDocument>.Update
-            .Set(s => s.Model, d.Model)
-            .Set(s => s.IsConnected, true)
-            .Set(s => s.Telemetry, d.Telemetry)
-            .SetOnInsert(s => s.FirstSeenAt, ts);
+            .Set(x => x.Model, d.Model)
+            .Set(x => x.IsConnected, true)
+            .Set(x => x.Telemetry, telemetry);
 
-
-        await _snapshots.UpdateOneAsync(
+        var result = await _snapshots.FindOneAndUpdateAsync(
             filter,
             update,
-            new UpdateOptions { IsUpsert = true }
+            new FindOneAndUpdateOptions<DroneSnapshotDocument> { IsUpsert = false }
         );
+
+        if (result != null) return;
+
+        try
+        {
+            await _snapshots.InsertOneAsync(new DroneSnapshotDocument
+            {
+                DroneId = d.DroneId,
+                Model = d.Model,
+                Telemetry = telemetry,
+                IsConnected = true,
+                FirstSeenAt = telemetry.Timestamp
+            });
+        }
+        catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // Another writer inserted first, safe to ignore
+        }
     }
+
+
+
     private async Task HandleDroneDisconnected(DroneDisconnected evt)
     {
         var filter = Builders<DroneSnapshotDocument>.Filter.Eq(s => s.DroneId, evt.DroneId);

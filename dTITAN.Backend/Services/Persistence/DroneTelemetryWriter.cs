@@ -1,7 +1,7 @@
 using MongoDB.Driver;
-using dTITAN.Backend.Data.Models;
 using dTITAN.Backend.Services.EventBus;
 using dTITAN.Backend.Data.Persistence;
+using dTITAN.Backend.Data.Models.Events;
 
 namespace dTITAN.Backend.Services.Persistence;
 
@@ -9,7 +9,7 @@ public class DroneTelemetryWriter
 {
     private readonly IMongoCollection<DroneTelemetryDocument> _telemetries;
 
-    public DroneTelemetryWriter(IMongoCollection<DroneTelemetryDocument> telemetries, IDroneEventBus eventBus)
+    public DroneTelemetryWriter(IMongoCollection<DroneTelemetryDocument> telemetries, IEventBus eventBus)
     {
         _telemetries = telemetries;
         eventBus.Subscribe<DroneTelemetryReceived>(HandleTelemetryReceived);
