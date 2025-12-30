@@ -32,6 +32,7 @@ public class ClientConnectionManager
         _clients[id] = socket;
         return id;
     }
+
     public async Task RemoveClient(Guid id)
     {
         if (_clients.TryRemove(id, out var socket))
@@ -54,21 +55,10 @@ public class ClientConnectionManager
             _ => Task.CompletedTask
         };
 
-    private async Task SendToConnection(IConnectionEvent evt)
+    private Task SendToConnection(IConnectionEvent evt)
     {
-        if (evt is not CommandStatusChanged)
-        {
-            _logger.LogWarning("Unsupported connection event type: {EventType}", evt.GetType().Name);
-            return;
-        }
-        var target = ((CommandStatusChanged)evt).Status.ConnectionId;
-        if (!_clients.TryGetValue(target, out var socket)) return;
-        if (socket.State != WebSocketState.Open)
-        {
-            await RemoveClient(target);
-            return;
-        }
-        await Send(socket, EventEnvelope.From(evt));
+        _logger.LogWarning("Received IConnectionEvent of type {EventType}, but SendToConnection is not implemented. The event will be ignored.", evt.GetType().Name);
+        return Task.CompletedTask;
     }
 
     private async Task BroadcastToAll(IBroadcastEvent evt)

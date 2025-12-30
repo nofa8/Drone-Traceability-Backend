@@ -195,7 +195,7 @@ public sealed class DroneWebSocketClient : BackgroundService
             Message = JsonSerializer.SerializeToElement(cmd.ToPayload(), _jsonOptions)
         };
         var json = JsonSerializer.Serialize(envelope, _jsonOptions);
-        _logger.LogInformation("Sending command to drone:\n{json}", json);
+        _logger.LogInformation("Sending command to drone: {json}", json);
         return _outChannel.Writer.WriteAsync(json).AsTask();
     }
 

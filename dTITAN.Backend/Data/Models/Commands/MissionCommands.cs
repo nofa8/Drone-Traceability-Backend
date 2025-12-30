@@ -8,8 +8,8 @@ namespace dTITAN.Backend.Data.Models.Commands;
 /// </summary>
 public class StartMissionCommand : DroneCommand, IHasAllowedCommands
 {
+    public StartMissionCommand() { Command = "startMission"; }
     public static IReadOnlyList<string> AllowedCommands => ["startMission"];
-    public override string Command => "startMission";
 
     /// <summary>
     /// Action to perform before the mission starts.

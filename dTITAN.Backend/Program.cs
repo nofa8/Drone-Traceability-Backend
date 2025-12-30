@@ -7,6 +7,8 @@ using dTITAN.Backend.Data.Persistence;
 using dTITAN.Backend.Services.ClientGateway;
 using System.Threading.Channels;
 using dTITAN.Backend.Data.Models;
+using MongoDB.Bson.Serialization;
+using dTITAN.Backend.Data.Models.Commands;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +47,11 @@ builder.Services.AddSingleton(sp =>
     );
     return collection;
 });
+builder.Services.AddSingleton(sp =>
+{
+    var db = sp.GetRequiredService<MongoDbContext>();
+    return db.GetCollection<DroneCommandDocument>("drone_command");
+});
 
 // Event bus
 builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
@@ -52,6 +59,7 @@ builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
 // Persistence services
 builder.Services.AddSingleton<DroneTelemetryWriter>();
 builder.Services.AddSingleton<DroneSnapshotUpdater>();
+builder.Services.AddSingleton<CommandWriter>();
 
 // Ingestion services
 var disconnectTimeout = TimeSpan.FromSeconds(5);
@@ -110,6 +118,7 @@ app.MapControllers();
 app.Services.GetRequiredService<ClientConnectionManager>();
 app.Services.GetRequiredService<DroneTelemetryWriter>();
 app.Services.GetRequiredService<DroneSnapshotUpdater>();
+app.Services.GetRequiredService<CommandWriter>();
 
 // Run
 try

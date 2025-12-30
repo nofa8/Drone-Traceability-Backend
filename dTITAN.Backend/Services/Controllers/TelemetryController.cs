@@ -66,12 +66,20 @@ public class TelemetryController(
         int limit;
         if (pageRequest.Limit > max)
         {
-            _logger.LogWarning("Requested limit {Limit} exceeds max; capping to {Max}", pageRequest.Limit, max);
+            _logger.LogWarning(
+                "Requested telemetry page size {RequestedLimit} exceeds maximum {Max}. Capping to {Max}.",
+                pageRequest.Limit,
+                max,
+                max);
             limit = max;
         }
         else if (pageRequest.Limit < min)
         {
-            _logger.LogWarning("Requested limit {Limit} is invalid; resetting to {defaultLimit}", pageRequest.Limit, defaultLimit);
+            _logger.LogWarning(
+                "Requested telemetry page size {RequestedLimit} is below minimum {Min}. Using default limit {DefaultLimit}.",
+                pageRequest.Limit,
+                min,
+                defaultLimit);
             limit = defaultLimit;
         }
         else

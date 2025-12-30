@@ -19,5 +19,3 @@ public interface IBroadcastEvent : IPublicEvent { }
 public interface IDroneEvent : IBroadcastEvent { }
 
 public interface IConnectionEvent : IPublicEvent { }
-public interface ICommandStatusEvent : IConnectionEvent { }
-

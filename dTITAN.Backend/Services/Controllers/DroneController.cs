@@ -69,12 +69,20 @@ public class DroneController(
         int limit;
         if (pageRequest.Limit > max)
         {
-            _logger.LogWarning("Requested limit {Limit} exceeds max; capping to {Max}", pageRequest.Limit, max);
+            _logger.LogWarning(
+                "Requested limit {RequestedLimit} exceeds maximum {MaxLimit}. Capping to {AppliedLimit}.",
+                pageRequest.Limit,
+                max,
+                max);
             limit = max;
         }
         else if (pageRequest.Limit < min)
         {
-            _logger.LogWarning("Requested limit {Limit} is invalid; resetting to {defaultLimit}", pageRequest.Limit, defaultLimit);
+            _logger.LogWarning(
+                "Requested limit {RequestedLimit} is below minimum {MinLimit}. Using default limit {DefaultLimit}.",
+                pageRequest.Limit,
+                min,
+                defaultLimit);
             limit = defaultLimit;
         }
         else
