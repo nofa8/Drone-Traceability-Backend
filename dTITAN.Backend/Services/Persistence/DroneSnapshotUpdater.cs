@@ -9,14 +9,15 @@ namespace dTITAN.Backend.Services.Persistence;
 public class DroneSnapshotUpdater
 {
     private readonly IMongoCollection<DroneSnapshotDocument> _snapshots;
+    private readonly ILogger<DroneSnapshotUpdater> _logger;
 
-    public DroneSnapshotUpdater(IMongoCollection<DroneSnapshotDocument> snapshots, IEventBus eventBus)
+    public DroneSnapshotUpdater(IMongoCollection<DroneSnapshotDocument> snapshots, IEventBus eventBus, ILogger<DroneSnapshotUpdater> logger)
     {
         _snapshots = snapshots;
+        _logger = logger;
         eventBus.Subscribe<DroneTelemetryReceived>(HandleTelemetryReceived);
         eventBus.Subscribe<DroneDisconnected>(HandleDroneDisconnected);
     }
-
 
     private async Task HandleTelemetryReceived(DroneTelemetryReceived evt)
     {
@@ -60,14 +61,19 @@ public class DroneSnapshotUpdater
         }
     }
 
-
-
     private async Task HandleDroneDisconnected(DroneDisconnected evt)
     {
-        var filter = Builders<DroneSnapshotDocument>.Filter.Eq(s => s.DroneId, evt.DroneId);
-        var update = Builders<DroneSnapshotDocument>.Update
-            .Set(d => d.IsConnected, false);
+        try
+        {
+            var filter = Builders<DroneSnapshotDocument>.Filter.Eq(s => s.DroneId, evt.DroneId);
+            var update = Builders<DroneSnapshotDocument>.Update
+                .Set(d => d.IsConnected, false);
 
-        await _snapshots.UpdateOneAsync(filter, update);
+            await _snapshots.UpdateOneAsync(filter, update);
+        }
+        catch (System.Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update drone snapshot for DroneId {DroneId} on disconnect", evt.DroneId);
+        }
     }
 }

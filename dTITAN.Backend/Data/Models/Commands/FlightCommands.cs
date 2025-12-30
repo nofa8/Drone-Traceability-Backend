@@ -1,8 +1,12 @@
 namespace dTITAN.Backend.Data.Models.Commands;
 
-public class FlightCommand(string command) : DroneCommand, IHasAllowedCommands
+public class FlightCommand : DroneCommand, IHasAllowedCommands
 {
-    public override string Command => command;
+    public FlightCommand(string command)
+    {
+        Command = command;
+    }
+
     private static readonly List<string> allowedCommands =
     [
         "takeoff",

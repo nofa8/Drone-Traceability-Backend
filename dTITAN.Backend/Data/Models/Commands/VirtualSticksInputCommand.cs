@@ -3,8 +3,12 @@ namespace dTITAN.Backend.Data.Models.Commands;
 
 public class VirtualSticksInputCommand : DroneCommand, IHasAllowedCommands
 {
+    public VirtualSticksInputCommand()
+    {
+        Command = "virtualSticksInput";
+    }
+
     public static IReadOnlyList<string> AllowedCommands => ["virtualSticksInput"];
-    public override string Command => "virtualSticksInput";
 
     /// <summary>
     /// Rotation around vertical axis.

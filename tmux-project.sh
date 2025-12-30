@@ -26,7 +26,7 @@ fi
 tmux new-session -d -s "$SESSION" -n "Workspace"
 
 # Split vertically: top = sims, bottom = backend
-tmux split-window -v -l 5 -t "$SESSION:1.1"
+tmux split-window -v -l 10 -t "$SESSION:1.1"
 
 tmux send-keys -t "$SESSION:1.1" "$SIMULATOR_CMD" C-m
 tmux send-keys -t "$SESSION:1.2" "$BACKEND_CMD" C-m
@@ -34,8 +34,8 @@ tmux send-keys -t "$SESSION:1.2" "$BACKEND_CMD" C-m
 # Split horizontally: left = drone sim, right = client sim
 tmux split-window -h -l 30 -t "$SESSION:1.1"
 tmux send-keys -t "$SESSION:1.2" "$CLIENT_CMD" C-m
+tmux select-pane -t "$SESSION:1.1"
 
-tmux select-pane -t "$SESSION:1.2"
 
 # ---------------- Window 2: LazyDocker ----------------
 tmux new-window -t "$SESSION:2" -n "LazyDocker"
