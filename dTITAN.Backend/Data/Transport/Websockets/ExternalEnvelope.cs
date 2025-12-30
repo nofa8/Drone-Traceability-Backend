@@ -6,13 +6,10 @@ namespace dTITAN.Backend.Data.Transport.Websockets;
 public sealed class ExternalEnvelope
 {
     // UserId = Drone Id
-    [JsonPropertyName("userId")]
-    public string Id { get; set; } = default!;
+    public string UserId { get; set; } = default!;
 
-    [JsonPropertyName("role")]
     public string? Role { get; set; }
 
-    [JsonPropertyName("message")]
     public JsonElement Message { get; set; }
     
     // XXX: Unknown purpose
