@@ -1,16 +1,9 @@
-namespace dTITAN.Backend.Data.Transport.Websockets.Commands;
+namespace dTITAN.Backend.Data.Models.Commands;
 
-public sealed class VirtualSticksCommand : DroneCommand
-{
-    public override string Command => "virtualSticks";
-    /// <summary>
-    /// Set <c>true</c> to enable manual Virtual Sticks control, <c>false</c> to resume autonomous flight.
-    /// </summary>
-    public bool State { get; set; }
-}
 
-public sealed class VirtualSticksInputCommand : DroneCommand
+public class VirtualSticksInputCommand : DroneCommand, IHasAllowedCommands
 {
+    public static IReadOnlyList<string> AllowedCommands => ["virtualSticksInput"];
     public override string Command => "virtualSticksInput";
 
     /// <summary>

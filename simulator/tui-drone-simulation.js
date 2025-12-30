@@ -375,5 +375,6 @@ process.stdin.on("data", async (data) => {
 });
 
 // ---------------- Main Loop ----------------
-setInterval(render, 200);
+// cap render to max 60 FPS
+setInterval(render, Math.round(1000 / 60));
 render();

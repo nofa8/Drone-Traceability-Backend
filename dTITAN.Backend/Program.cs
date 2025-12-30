@@ -5,6 +5,8 @@ using dTITAN.Backend.Services.Persistence;
 using dTITAN.Backend.Services.EventBus;
 using dTITAN.Backend.Data.Persistence;
 using dTITAN.Backend.Services.ClientGateway;
+using System.Threading.Channels;
+using dTITAN.Backend.Data.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,10 +63,12 @@ builder.Services.AddSingleton(sp =>
 );
 
 // Client Gateway services
+builder.Services.AddSingleton(Channel.CreateUnbounded<(Guid, string)>());
 builder.Services.AddSingleton<ClientConnectionManager>();
 builder.Services.AddSingleton<ClientWebSocketService>();
 
 // Hosted services
+builder.Services.AddHostedService<ClientMessageProcessor>();
 builder.Services.AddHostedService<DroneWebSocketClient>();
 builder.Services.AddHostedService(sp =>
     new DroneTimeoutWorker(
@@ -88,9 +92,13 @@ app.UseWebSockets(new WebSocketOptions
 // Map WebSocket endpoint
 app.Map("/ws", async context =>
 {
+    var lifetime = context.RequestServices
+        .GetRequiredService<IHostApplicationLifetime>();
+
     var wsService = context.RequestServices.GetRequiredService<ClientWebSocketService>();
-    await wsService.HandleClientAsync(context);
+    await wsService.HandleClientAsync(context, lifetime.ApplicationStopping);
 });
+
 
 app.MapOpenApi();
 // XXX: HTTPS redirection requires proper certs.
@@ -102,13 +110,6 @@ app.MapControllers();
 app.Services.GetRequiredService<ClientConnectionManager>();
 app.Services.GetRequiredService<DroneTelemetryWriter>();
 app.Services.GetRequiredService<DroneSnapshotUpdater>();
-
-// Graceful shutdown for WebSocket service
-app.Lifetime.ApplicationStopping.Register(async () =>
-{
-    var wsService = app.Services.GetRequiredService<ClientWebSocketService>();
-    await wsService.DisposeAsync();
-});
 
 // Run
 try

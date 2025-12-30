@@ -2,23 +2,35 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using dTITAN.Backend.Data.Models.Events;
 using dTITAN.Backend.Data.Transport.Websockets;
+using dTITAN.Backend.Services.EventBus;
 
 namespace dTITAN.Backend.Services.Ingestion;
 
 public sealed class DroneWebSocketClient : BackgroundService
 {
-    private readonly ILogger _logger;
+    private readonly IEventBus _eventBus;
+    private readonly ILogger<DroneWebSocketClient> _logger;
     private readonly DroneManager _manager;
     private readonly Uri _uri;
+    private ClientWebSocket? _currentSocket;
+    private readonly object _socketLock = new();
 
-    private readonly Channel<string> _messageChannel = Channel.CreateUnbounded<string>();
+    private readonly Channel<string> _inChannel = Channel.CreateUnbounded<string>();
+    private readonly Channel<string> _outChannel = Channel.CreateUnbounded<string>();
 
+    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
     public DroneWebSocketClient(
         IConfiguration config,
+        IEventBus eventBus,
         DroneManager manager,
         ILogger<DroneWebSocketClient> logger)
     {
+        _eventBus = eventBus;
         _logger = logger;
         _manager = manager;
 
@@ -29,10 +41,14 @@ public sealed class DroneWebSocketClient : BackgroundService
         // Append dboidsID=0 so we get broast data for all drones, and command acess
         _uri = new Uri(connectionString + "?dboidsID=0");
         _logger.LogInformation("Initializing WebSocketService with {_uri}", _uri);
+
     }
+
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
+        _eventBus.Subscribe<IInternalEvent>(HandleCommandRequest);
+
         var backoff = TimeSpan.FromSeconds(1);
         var maxBackoff = TimeSpan.FromSeconds(30);
 
@@ -46,14 +62,19 @@ public sealed class DroneWebSocketClient : BackgroundService
                 _logger.LogInformation("Connecting to WebSocket {Uri}", _uri);
                 await ws.ConnectAsync(_uri, ct);
                 backoff = TimeSpan.FromSeconds(1);
+                lock (_socketLock)
+                {
+                    _currentSocket = ws;
+                }
 
-                // start background processor
+                // start background
+                Task sendTask = SendLoop(ws, ct);
                 Task processTask = ProcessMessages(ct);
 
                 await ReceiveLoop(ws, ct);
 
                 // complete channel so processor finishes
-                _messageChannel.Writer.Complete();
+                _inChannel.Writer.Complete();
                 await processTask;
             }
             catch (OperationCanceledException)
@@ -63,6 +84,13 @@ public sealed class DroneWebSocketClient : BackgroundService
             catch (Exception ex) when (ex is WebSocketException || ex is IOException)
             {
                 _logger.LogWarning(ex, "WebSocket connection lost");
+            }
+            finally
+            {
+                lock (_socketLock)
+                {
+                    _currentSocket = null;
+                }
             }
 
             if (ct.IsCancellationRequested) break;
@@ -97,18 +125,37 @@ public sealed class DroneWebSocketClient : BackgroundService
 
             if (ms.Length == 0) continue;
             var text = Encoding.UTF8.GetString(ms.ToArray());
-            await _messageChannel.Writer.WriteAsync(text, ct);
+            await _inChannel.Writer.WriteAsync(text, ct);
+        }
+    }
+    private async Task SendLoop(ClientWebSocket ws, CancellationToken ct)
+    {
+        await foreach (var msg in _outChannel.Reader.ReadAllAsync(ct))
+        {
+            if (ws.State != WebSocketState.Open)
+                continue;
+
+            var bytes = Encoding.UTF8.GetBytes(msg);
+            var segment = new ArraySegment<byte>(bytes);
+
+            await ws.SendAsync(
+                segment,
+                WebSocketMessageType.Text,
+                endOfMessage: true,
+                cancellationToken: ct
+            );
         }
     }
 
+
     private async Task ProcessMessages(CancellationToken ct)
     {
-        await foreach (var payload in _messageChannel.Reader.ReadAllAsync(ct))
+        await foreach (var payload in _inChannel.Reader.ReadAllAsync(ct))
         {
             ExternalEnvelope? envelope;
             try
             {
-                envelope = JsonSerializer.Deserialize<ExternalEnvelope>(payload);
+                envelope = JsonSerializer.Deserialize<ExternalEnvelope>(payload, _jsonOptions);
                 if (envelope == null) continue;
             }
             catch (JsonException ex)
@@ -137,4 +184,19 @@ public sealed class DroneWebSocketClient : BackgroundService
         if (telemetry == null) return;
         _manager.ProcessTelemetry(telemetry);
     }
+
+    private Task HandleCommandRequest(IInternalEvent evt)
+    {
+        if (evt is not CommandReceived cmd) return Task.CompletedTask;
+
+        var envelope = new ExternalEnvelope
+        {
+            Id = cmd.Command.DroneId,
+            Message = JsonSerializer.SerializeToElement(cmd.ToPayload(), _jsonOptions)
+        };
+        var json = JsonSerializer.Serialize(envelope, _jsonOptions);
+        _logger.LogInformation("Sending command to drone:\n{json}", json);
+        return _outChannel.Writer.WriteAsync(json).AsTask();
+    }
+
 }

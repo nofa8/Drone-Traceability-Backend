@@ -16,24 +16,24 @@ public enum MissionStatus
     /// <summary>
     /// Mission is actively executing.
     /// </summary>
-    [JsonPropertyName("RUNNING")]
+    [JsonStringEnumMemberName("RUNNING")]
     Running,
 
     /// <summary>
     /// Mission is temporarily halted.
     /// </summary>
-    [JsonPropertyName("PAUSED")]
+    [JsonStringEnumMemberName("PAUSED")]
     Paused,
 
     /// <summary>
     /// Mission finished successfully.
     /// </summary>
-    [JsonPropertyName("COMPLETED")]
+    [JsonStringEnumMemberName("COMPLETED")]
     Completed,
 
     /// <summary>
     /// Mission aborted by user command.
     /// </summary>
-    [JsonPropertyName("STOPPED")]
+    [JsonStringEnumMemberName("STOPPED")]
     Stopped,
 }
