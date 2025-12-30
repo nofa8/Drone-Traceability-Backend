@@ -11,12 +11,12 @@ public enum StartAction
     /// <summary>
     /// Automatically take off before the mission begins.
     /// </summary>
-    [JsonPropertyName("takeoff")]
+    [JsonStringEnumMemberName("takeoff")]
     Takeoff,
 
     /// <summary>
     /// Do not perform any start action; begin from current state.
     /// </summary>
-    [JsonPropertyName("none")]
+    [JsonStringEnumMemberName("none")]
     None
 }

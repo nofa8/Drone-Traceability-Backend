@@ -11,11 +11,13 @@ public interface IEvent
     public object ToPayload();
 }
 
-public interface IBroadcastEvent : IEvent { }
+public interface IInternalEvent : IEvent { }
+public interface ICommandEvent : IInternalEvent { }
 
-public interface IConnectionEvent : IEvent
-{
-    ConnectionId Target { get; }
-}
-
+public interface IPublicEvent : IEvent { }
+public interface IBroadcastEvent : IPublicEvent { }
 public interface IDroneEvent : IBroadcastEvent { }
+
+public interface IConnectionEvent : IPublicEvent { }
+public interface ICommandStatusEvent : IConnectionEvent { }
+

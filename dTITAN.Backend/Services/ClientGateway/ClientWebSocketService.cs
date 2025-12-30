@@ -5,24 +5,13 @@ using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Services.ClientGateway;
 
-public class ClientWebSocketService : IAsyncDisposable
+public class ClientWebSocketService(ClientConnectionManager manager, Channel<(Guid, string)> messageChannel, ILogger<ClientWebSocketService> logger)
 {
-    private readonly ILogger<ClientWebSocketService> _logger;
-    private readonly ClientConnectionManager _manager;
-    private readonly Channel<(ConnectionId id, string message)> _messageChannel;
-    private readonly Task _processTask;
+    private readonly ILogger<ClientWebSocketService> _logger = logger;
+    private readonly ClientConnectionManager _manager = manager;
+    private readonly Channel<(Guid id, string message)> _messageChannel = messageChannel;
 
-    public ClientWebSocketService(ClientConnectionManager manager, ILogger<ClientWebSocketService> logger)
-    {
-        _logger = logger;
-        _manager = manager;
-        _messageChannel = Channel.CreateUnbounded<(ConnectionId, string)>();
-        
-        // Start background processor
-        _processTask = Task.Run(ProcessMessages);
-    }
-
-    public async Task HandleClientAsync(HttpContext context)
+    public async Task HandleClientAsync(HttpContext context, CancellationToken appStopping)
     {
         if (!context.WebSockets.IsWebSocketRequest)
         {
@@ -31,58 +20,51 @@ public class ClientWebSocketService : IAsyncDisposable
         }
         var socket = await context.WebSockets.AcceptWebSocketAsync();
         var id = _manager.AddClient(socket);
+        _logger.LogInformation("Client connected: {id}", id);
 
-        await ReceiveLoop(socket, id);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            context.RequestAborted,
+            appStopping);
+
+        await ReceiveLoop(socket, id, linkedCts.Token);
 
         await _manager.RemoveClient(id);
     }
 
-    private async Task ReceiveLoop(WebSocket socket, ConnectionId id)
+    private async Task ReceiveLoop(WebSocket socket, Guid id, CancellationToken cancellationToken)
     {
         var buffer = new ArraySegment<byte>(new byte[8192]);
-
-        while (socket.State == WebSocketState.Open)
-        {
-            using var ms = new MemoryStream();
-            WebSocketReceiveResult result;
-            do
-            {
-                result = await socket.ReceiveAsync(buffer, CancellationToken.None);
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", CancellationToken.None);
-                    return;
-                }
-                ms.Write(buffer.Array!, buffer.Offset, result.Count);
-            }
-            while (!result.EndOfMessage);
-
-            if (ms.Length == 0) continue;
-            var text = Encoding.UTF8.GetString(ms.ToArray());
-            await _messageChannel.Writer.WriteAsync((id, text));
-        }
-    }
-
-    private async Task ProcessMessages()
-    {
-        await foreach (var (id, message) in _messageChannel.Reader.ReadAllAsync())
-        {
-            // XXX: check this when doing the drone commands
-            // Just pass the raw message to the manager or event bus
-            // No deserialization or processing here unless needed
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _messageChannel.Writer.TryComplete();
         try
         {
-            await _processTask;
+            while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+            {
+                using var ms = new MemoryStream();
+                WebSocketReceiveResult result;
+                do
+                {
+                    result = await socket.ReceiveAsync(buffer, cancellationToken);
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", cancellationToken);
+                        return;
+                    }
+                    ms.Write(buffer.Array!, buffer.Offset, result.Count);
+                }
+                while (!result.EndOfMessage);
+
+                if (ms.Length == 0) continue;
+                var text = Encoding.UTF8.GetString(ms.ToArray());
+                await _messageChannel.Writer.WriteAsync((id, text), cancellationToken);
+            }
         }
-        catch
+        catch (OperationCanceledException) { }
+        catch (WebSocketException)
         {
-            _logger.LogError("Error disposing ClientWebSocketService");
+            _logger.LogWarning(message: "WebSocket disconnected unexpectedly: {id}", id);
+        }
+        finally
+        {
+            socket.Abort();
         }
     }
 }
