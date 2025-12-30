@@ -3,13 +3,40 @@
 import WebSocket from "ws";
 import crypto from "crypto";
 import fs from "fs";
+import {
+  state,
+  pushServerMessage,
+  requestRender,
+  readLine,
+  setupKeyboard,
+  formatServerText,
+  setRender,
+} from "./tuiBase.js";
 
 const WS_URL = "ws://localhost:8083";
 const drones = new Map();
-let isReadingInput = false;
 
 // Load presets
 const presets = JSON.parse(fs.readFileSync("./presets.json", "utf-8"));
+const DRONE_STEP_INTERVAL = 200;
+
+function startDroneTimer() {
+  if (globalThis._droneTimer) return; // already running
+  globalThis._droneTimer = setInterval(() => {
+    let changed = false;
+    for (const d of drones.values()) {
+      if (d.isFlying) {
+        changed = d.step() || changed; // step returns true if state changed
+      }
+    }
+    if (changed) requestRender(); // single render per tick
+  }, DRONE_STEP_INTERVAL);
+}
+
+function stopDroneTimer() {
+  if (globalThis._droneTimer) clearInterval(globalThis._droneTimer);
+  globalThis._droneTimer = null;
+}
 
 // ---------------- Drone ----------------
 class Drone {
@@ -35,6 +62,7 @@ class Drone {
     this.isHomeLocationSet = true;
     this.areMotorsOn = false;
     this.areLightsOn = false;
+
     this.targetAlt = null;
     this.targetLat = null;
     this.targetLng = null;
@@ -43,13 +71,30 @@ class Drone {
     this.windFactor = 0.05;
 
     this.ws = new WebSocket(`${WS_URL}?dboidsID=${id}`);
+
+    this.ws.on("open", () => pushServerMessage(`[ws ${this.id}] connected`));
+    this.ws.on("message", (data) => {
+      const str = data.toString();
+      try {
+        const parsed = JSON.parse(str);
+        pushServerMessage(`[${this.id}] ${JSON.stringify(parsed)}`);
+      } catch {
+        pushServerMessage(`[${this.id}] ${str}`);
+      }
+    });
+    this.ws.on("close", (code, reason) =>
+      pushServerMessage(`[ws ${this.id}] closed ${code} ${reason || ""}`)
+    );
+    this.ws.on("error", (err) =>
+      pushServerMessage(`[ws ${this.id}] error: ${err?.message ?? err}`)
+    );
   }
 
   start() {
     if (this.isFlying) return;
     this.isFlying = true;
     this.areMotorsOn = true;
-    this.timer = setInterval(() => this.step(), 200);
+    startDroneTimer(); // ensure global timer is running
   }
 
   stop() {
@@ -59,6 +104,7 @@ class Drone {
     clearInterval(this.timer);
     this.velX = this.velY = this.velZ = 0;
     this.send();
+    requestRender();
   }
 
   setHeading(hdg) {
@@ -90,6 +136,14 @@ class Drone {
   }
 
   step() {
+    // Track changes for reactive rendering
+    let changed = false;
+    const oldLat = this.lat;
+    const oldLng = this.lng;
+    const oldAlt = this.alt;
+    const oldHdg = this.hdg;
+
+    // Update heading
     if (this.targetLat !== null && this.targetLng !== null) {
       const dx = this.targetLng - this.lng;
       const dy = this.targetLat - this.lat;
@@ -101,6 +155,8 @@ class Drone {
       if (this.hdg < 0) this.hdg += 360;
       if (this.hdg >= 360) this.hdg -= 360;
     }
+
+    if (this.hdg !== oldHdg) changed = true;
 
     const rad = (this.hdg * Math.PI) / 180;
 
@@ -148,7 +204,16 @@ class Drone {
     );
     this.batLvl = Math.max(0, this.batLvl - 0.02 - motionFactor * 0.01);
 
+    if (
+      this.lat !== oldLat ||
+      this.lng !== oldLng ||
+      this.alt !== oldAlt ||
+      this.hdg !== oldHdg
+    )
+      changed = true;
+
     this.send();
+    return changed;
   }
 
   send() {
@@ -183,45 +248,13 @@ class Drone {
 
   close() {
     this.stop();
-    this.ws.close();
+    try {
+      this.ws.close();
+    } catch {}
   }
 }
 
-// Graceful shutdown on Ctrl+C
-process.on("SIGINT", () => {
-  console.log("\nCaught Ctrl+C, closing drones...");
-  for (const d of drones.values()) d.close();
-  process.exit(0);
-});
-
-// ---------------- Input ----------------
-function readLine(prompt) {
-  isReadingInput = true;
-  return new Promise((resolve) => {
-    let buf = "";
-    process.stdout.write(prompt);
-    const onData = (data) => {
-      const ch = data.toString();
-      if (ch === "\r") {
-        process.stdin.off("data", onData);
-        process.stdout.write("\n");
-        isReadingInput = false;
-        resolve(buf.trim());
-      } else if (ch === "\u0003") process.exit(0);
-      else if (ch === "\u007f") {
-        if (buf.length > 0) {
-          buf = buf.slice(0, -1);
-          process.stdout.write("\b \b");
-        }
-      } else {
-        buf += ch;
-        process.stdout.write(ch);
-      }
-    };
-    process.stdin.on("data", onData);
-  });
-}
-
+// ---------------- Drone helpers ----------------
 function resolveTargets(input) {
   if (input === "all") return [...drones.values()];
   const idxs = input
@@ -231,49 +264,58 @@ function resolveTargets(input) {
   return [...drones.values()].filter((_, i) => idxs.includes(i));
 }
 
-// ---------------- Add Drone From Preset ----------------
 async function createNewDrone() {
   const id = crypto.randomUUID().slice(0, 6);
   const d = new Drone(id);
-
   d.model = (await readLine("Enter model name: ")) || "";
   d.maxSpeed = parseFloat(await readLine("Enter max speed: ")) || 5;
   d.targetAlt = parseFloat(await readLine("Enter target altitude: ")) || 0;
   d.hdg = parseFloat(await readLine("Enter heading (0-360): ")) || 0;
-
   drones.set(id, d);
-  console.log(`Drone ${id} created.`);
+  pushServerMessage(`Drone ${id} created.`);
 }
 
 async function loadAllPresets() {
-  console.log("Loading all presets...");
-
   for (const presetKey of Object.keys(presets)) {
     const preset = presets[presetKey];
     const id = preset.id ?? crypto.randomUUID().slice(0, 6);
-
-    if (drones.has(id)) {
-      console.log(`Drone with ID "${id}" already exists, skipping.`);
-      continue;
-    }
-
+    if (drones.has(id)) continue;
     const d = new Drone(id);
     d.model = preset.model || "";
     d.maxSpeed = preset.maxSpeed ?? d.maxSpeed;
     d.targetAlt = preset.targetAlt ?? d.targetAlt;
     d.hdg = preset.hdg ?? d.hdg;
-
     drones.set(id, d);
-    console.log(`Drone ${id} (${d.model}) loaded.`);
+    pushServerMessage(`Drone ${id} (${d.model}) loaded.`);
   }
 }
 
-
 // ---------------- Render ----------------
 function render() {
-  if (isReadingInput) return;
+  if (state.lockRender) return;
+
   console.clear();
   console.log("Drone Simulator\n");
+
+  const visible = 3;
+  const maxStart = Math.max(0, state.serverMessages.length - visible);
+  const start = Math.max(0, Math.min(state.messageScroll, maxStart));
+  const slice = state.serverMessages.slice(start, start + visible);
+
+  if (slice.length > 0) {
+    console.log(
+      `Server messages (${start + 1}-${start + slice.length} of ${
+        state.serverMessages.length
+      }) [up/down,x=clear]:`
+    );
+    const cols = process.stdout?.columns ?? 80;
+    for (const m of slice) {
+      const avail = Math.max(10, cols - m.time.length - 1);
+      console.log(`${m.time} ${formatServerText(m.text, avail)}`);
+    }
+    console.log();
+  }
+
   console.log("#  ID       STATE     ALT     BAT");
   console.log("--------------------------------");
   let i = 1;
@@ -287,6 +329,7 @@ function render() {
     i++;
   }
   if (drones.size === 0) console.log("(no drones)");
+
   console.log(`
 [a] Load all drones from presets
 [n] Create new drone
@@ -302,79 +345,109 @@ function render() {
 `);
 }
 
-// ---------------- Key Handling ----------------
-process.stdin.setRawMode(true);
-process.stdin.resume();
-process.stdin.on("data", async (data) => {
-  if (isReadingInput) return;
-  const key = data.toString();
+// Assign render to tuiBase
+setRender(render);
+
+// ---------------- Keyboard ----------------
+setupKeyboard(async (key) => {
   let targets;
 
-  if (key === "\u0003") {  // \u0003 is Ctrl+C
-    console.log("\nCaught Ctrl+C, closing drones...");
-    for (const d of drones.values()) d.close();
-    process.exit(0);
-  }
+  switch (key) {
+    case "q":
+      for (const d of drones.values()) d.close();
+      process.exit(0);
 
-  if (key === "q") {
-    for (const d of drones.values()) d.close();
-    process.exit(0);
-  }
-  if (key === "a") await loadAllPresets();
-  if (key === "n") await createNewDrone();
+    case "a":
+      await loadAllPresets();
+      break;
 
-  if (["s", "f", "d", "h", "t", "v", "w", "g"].includes(key)) {
-    if (drones.size === 1) targets = [...drones.values()];
-    else {
-      const sel = await readLine("Select drones (e.g., 1,3 or all): ");
-      targets = resolveTargets(sel);
-    }
+    case "n":
+      await createNewDrone();
+      break;
+
+    case "s":
+    case "f":
+    case "d":
+    case "h":
+    case "t":
+    case "v":
+    case "w":
+    case "g":
+      if (drones.size === 1) targets = [...drones.values()];
+      else {
+        const sel = await readLine("Select drones (e.g., 1,3 or all): ");
+        targets = resolveTargets(sel);
+      }
+      break;
   }
 
   switch (key) {
     case "s":
-      targets.forEach((d) => d.start());
+      targets?.forEach((d) => d.start());
       break;
     case "f":
-      targets.forEach((d) => d.stop());
+      targets?.forEach((d) => d.stop());
       break;
     case "d":
-      targets.forEach((d) => {
+      targets?.forEach((d) => {
         d.close();
         drones.delete(d.id);
       });
       break;
     case "h": {
       const hdg = parseFloat(await readLine("Enter heading (0-360): "));
-      targets.forEach((d) => d.setHeading(hdg));
+      targets?.forEach((d) => d.setHeading(hdg));
       break;
     }
     case "t": {
       const alt = parseFloat(await readLine("Enter target altitude: "));
-      targets.forEach((d) => d.setAltitude(alt));
+      targets?.forEach((d) => d.setAltitude(alt));
       break;
     }
     case "v": {
       const spd = parseFloat(await readLine("Enter max speed: "));
-      targets.forEach((d) => d.setSpeed(spd));
+      targets?.forEach((d) => d.setSpeed(spd));
       break;
     }
     case "w": {
       const wp = await readLine("Enter waypoint (lat,lng[,alt]): ");
       const parts = wp.split(",").map((p) => parseFloat(p.trim()));
       if (parts.length >= 2)
-        targets.forEach((d) =>
+        targets?.forEach((d) =>
           d.setWaypoint(parts[0], parts[1], parts[2] ?? null)
         );
       break;
     }
     case "g":
-      targets.forEach((d) => d.goHome());
+      targets?.forEach((d) => d.goHome());
+      break;
+
+    // scroll / clear
+    case "\u001b[A":
+    case "k":
+      state.messageScroll = Math.max(0, state.messageScroll - 1);
+      break;
+    case "\u001b[B":
+    case "j":
+      state.messageScroll = Math.min(
+        Math.max(0, state.serverMessages.length - 3),
+        state.messageScroll + 1
+      );
+      break;
+    case "x":
+      state.serverMessages.length = 0;
+      state.messageScroll = 0;
       break;
   }
+
+  requestRender();
 });
 
-// ---------------- Main Loop ----------------
-// cap render to max 60 FPS
-setInterval(render, Math.round(1000 / 60));
-render();
+// ---------------- Graceful shutdown ----------------
+process.on("SIGINT", () => {
+  for (const d of drones.values()) d.close();
+  process.exit(0);
+});
+
+// Initial render
+requestRender();

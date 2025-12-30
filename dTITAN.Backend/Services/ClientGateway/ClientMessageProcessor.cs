@@ -58,7 +58,7 @@ public sealed class ClientMessageProcessor(
                 };
 
                 _logger.LogInformation("Received command '{Command}' from {ClientId}", command, id);
-                var evt = new CommandReceived(new DroneCommandContext(id, envelope.Id, command), now);
+                var evt = new CommandReceived(new DroneCommandContext(id, envelope.UserId, command), now);
                 _eventBus.Publish(evt);
             }
             catch (Exception ex)

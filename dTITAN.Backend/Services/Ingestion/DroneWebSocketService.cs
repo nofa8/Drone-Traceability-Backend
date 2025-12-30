@@ -191,7 +191,7 @@ public sealed class DroneWebSocketClient : BackgroundService
 
         var envelope = new ExternalEnvelope
         {
-            Id = cmd.Command.DroneId,
+            UserId = cmd.Command.DroneId,
             Message = JsonSerializer.SerializeToElement(cmd.ToPayload(), _jsonOptions)
         };
         var json = JsonSerializer.Serialize(envelope, _jsonOptions);
