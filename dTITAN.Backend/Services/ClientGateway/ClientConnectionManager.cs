@@ -51,7 +51,8 @@ public class ClientConnectionManager
         evt switch
         {
             IBroadcastEvent b => BroadcastToAll(b),
-            IConnectionEvent c => SendToConnection(c),
+            // XXX: no events like this yet 
+            // IConnectionEvent c => SendToConnection(c),
             _ => Task.CompletedTask
         };
 
@@ -71,15 +72,32 @@ public class ClientConnectionManager
                 dead.Add(id);
                 continue;
             }
-            await Send(socket, EventEnvelope.From(evt));
+            await Send(id, socket, EventEnvelope.From(evt));
         }
         foreach (var id in dead) await RemoveClient(id);
     }
 
-    private static async Task Send(WebSocket socket, EventEnvelope eventEnvelope)
+    private async Task Send(Guid id, WebSocket socket, EventEnvelope eventEnvelope)
     {
-        var json = JsonSerializer.Serialize(eventEnvelope, _jsonOptions);
-        var bytes = Encoding.UTF8.GetBytes(json);
-        await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+        byte[] bytes;
+        try
+        {
+            var json = JsonSerializer.Serialize(eventEnvelope, _jsonOptions);
+            bytes = Encoding.UTF8.GetBytes(json);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to serialize event envelope for WebSocket transmission.");
+            return;
+        }
+        try
+        {
+            await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            _logger.LogWarning("Failed to send event to WebSocket client {ClientId}. Removing client.", id);
+            await RemoveClient(id);
+        }
     }
 }

@@ -1,5 +1,5 @@
+using dTITAN.Backend.Data.Models.Commands.Enums;
 using dTITAN.Backend.Data.Transport.Websockets;
-using dTITAN.Backend.Data.Transport.Websockets.Enums;
 
 namespace dTITAN.Backend.Data.Models.Commands;
 

@@ -1,4 +1,4 @@
-namespace dTITAN.Backend.Services.Ingestion;
+namespace dTITAN.Backend.Services.DroneGateway;
 
 public class DroneTimeoutWorker(DroneManager manager, TimeSpan timeout) : BackgroundService
 {

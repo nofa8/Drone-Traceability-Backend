@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace dTITAN.Backend.Data.Transport.Websockets.Enums;
+namespace dTITAN.Backend.Data.Models.Commands.Enums;
 
 /// <summary>
 /// Action to perform when a mission completes.

@@ -1,6 +1,6 @@
-using dTITAN.Backend.Data.Models;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Data.Persistence;
 

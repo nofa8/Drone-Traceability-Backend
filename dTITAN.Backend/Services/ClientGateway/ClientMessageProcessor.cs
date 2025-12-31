@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using dTITAN.Backend.Data.Models;
-using dTITAN.Backend.Data.Models.Events;
 using dTITAN.Backend.Data.Models.Commands;
+using dTITAN.Backend.Data.Models.Events;
 using dTITAN.Backend.Data.Transport.Websockets;
 using dTITAN.Backend.Services.EventBus;
 
@@ -58,7 +58,8 @@ public sealed class ClientMessageProcessor(
                 };
 
                 _logger.LogInformation("Received command '{Command}' from {ClientId}", command, id);
-                var evt = new CommandReceived(new DroneCommandContext(id, envelope.UserId, command), now);
+                var droneCommandContext = DroneCommandContext.From(id, envelope.UserId, command, now);
+                var evt = new CommandReceived(droneCommandContext, now);
                 _eventBus.Publish(evt);
             }
             catch (Exception ex)

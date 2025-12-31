@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using dTITAN.Backend.Data.Persistence;
 using dTITAN.Backend.Data.Transport.Rest;
+using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Services.Controllers;
 
@@ -53,14 +54,14 @@ public class CommandsController(
     /// </list>
     /// </param>
     /// <returns>
-    /// A <see cref="PagedResult{CommandDocument}"/> containing command items and pagination cursors.
+    /// A <see cref="PagedResult{DroneCommandContext}"/> containing command items and pagination cursors.
     /// Items are always returned sorted by <c>Timestamp</c> (latest first).
     /// </returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<PagedResult<DroneCommandDocument>>> Get(
+    public async Task<ActionResult<PagedResult<DroneCommandContext>>> Get(
         string droneId,
-        [FromQuery] string commandType,
+        [FromQuery] string? commandType,
         [FromQuery] CursorPageRequest pageRequest)
     {
         _logger.LogInformation("Fetching commands for DroneId={DroneId}", droneId);
@@ -123,11 +124,13 @@ public class CommandsController(
            .Find(filter)
            .Sort(sort)
            .Limit(limit)
+           .Project<DroneCommandContext>(Builders<DroneCommandDocument>.Projection
+               .Exclude(d => d.Id))
            .ToListAsync();
 
         if (pageRequest.Forward) docs.Reverse();
 
-        var page = new PagedResult<DroneCommandDocument>
+        var page = new PagedResult<DroneCommandContext>
         {
             Items = docs,
             PrevCursor = docs.LastOrDefault()?.TimeStamp,

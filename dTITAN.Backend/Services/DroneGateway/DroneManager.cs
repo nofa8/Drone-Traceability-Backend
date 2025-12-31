@@ -4,7 +4,7 @@ using dTITAN.Backend.Data.Models.Events;
 using dTITAN.Backend.Data.Transport.Websockets;
 using dTITAN.Backend.Services.EventBus;
 
-namespace dTITAN.Backend.Services.Ingestion;
+namespace dTITAN.Backend.Services.DroneGateway;
 
 public sealed class DroneManager(IEventBus eventBus, TimeSpan timeout, ILogger<DroneManager> logger)
 {
@@ -23,7 +23,7 @@ public sealed class DroneManager(IEventBus eventBus, TimeSpan timeout, ILogger<D
 
         _logger.LogDebug(
             "Telemetry {Id}: [{Lat}, {Lng}, {Alt}]",
-            telemetry.Id,
+            id,
             telemetry.Latitude,
             telemetry.Longitude,
             telemetry.Altitude

@@ -1,7 +1,7 @@
+using MongoDB.Driver;
 using dTITAN.Backend.Data.Models.Events;
 using dTITAN.Backend.Data.Persistence;
 using dTITAN.Backend.Services.EventBus;
-using MongoDB.Driver;
 
 namespace dTITAN.Backend.Services.Persistence;
 
