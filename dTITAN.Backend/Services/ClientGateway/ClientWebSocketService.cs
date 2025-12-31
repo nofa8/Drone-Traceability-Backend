@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Channels;
-using dTITAN.Backend.Data.Models;
 
 namespace dTITAN.Backend.Services.ClientGateway;
 
@@ -33,7 +32,7 @@ public class ClientWebSocketService(ClientConnectionManager manager, Channel<(Gu
 
     private async Task ReceiveLoop(WebSocket socket, Guid id, CancellationToken cancellationToken)
     {
-        var buffer = new ArraySegment<byte>(new byte[8192]);
+        var buffer = new ArraySegment<byte>(new byte[4096]);
         try
         {
             while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
@@ -68,4 +67,3 @@ public class ClientWebSocketService(ClientConnectionManager manager, Channel<(Gu
         }
     }
 }
-

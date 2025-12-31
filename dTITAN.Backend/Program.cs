@@ -1,14 +1,11 @@
 using MongoDB.Driver;
 using Serilog;
-using dTITAN.Backend.Services.Ingestion;
-using dTITAN.Backend.Services.Persistence;
-using dTITAN.Backend.Services.EventBus;
+using System.Threading.Channels;
 using dTITAN.Backend.Data.Persistence;
 using dTITAN.Backend.Services.ClientGateway;
-using System.Threading.Channels;
-using dTITAN.Backend.Data.Models;
-using MongoDB.Bson.Serialization;
-using dTITAN.Backend.Data.Models.Commands;
+using dTITAN.Backend.Services.DroneGateway;
+using dTITAN.Backend.Services.EventBus;
+using dTITAN.Backend.Services.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 

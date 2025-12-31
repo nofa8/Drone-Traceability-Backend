@@ -1,13 +1,8 @@
 namespace dTITAN.Backend.Data.Models.Commands;
 
-
 public class VirtualSticksInputCommand : DroneCommand, IHasAllowedCommands
 {
-    public VirtualSticksInputCommand()
-    {
-        Command = "virtualSticksInput";
-    }
-
+    public VirtualSticksInputCommand() { Command = "virtualSticksInput"; }
     public static IReadOnlyList<string> AllowedCommands => ["virtualSticksInput"];
 
     /// <summary>

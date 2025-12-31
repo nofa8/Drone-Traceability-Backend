@@ -1,6 +1,6 @@
 using MongoDB.Driver;
 
-namespace dTITAN.Backend.Data.Persistence;
+namespace dTITAN.Backend.Services.Persistence;
 
 public class MongoDbContext
 {
@@ -13,7 +13,11 @@ public class MongoDbContext
             throw new InvalidOperationException("MongoDB connection string not configured.");
 
         var client = new MongoClient(connectionString);
-        _db = client.GetDatabase("dTITAN");
+        var databaseName = config["MongoDbDatabaseName"];
+        if (string.IsNullOrWhiteSpace(databaseName))
+            databaseName = "dTITAN";
+
+        _db = client.GetDatabase(databaseName);
     }
 
     public IMongoCollection<T> GetCollection<T>(string name) => _db.GetCollection<T>(name);

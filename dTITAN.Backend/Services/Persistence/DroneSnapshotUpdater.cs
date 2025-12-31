@@ -1,8 +1,8 @@
+using MongoDB.Bson;
 using MongoDB.Driver;
 using dTITAN.Backend.Services.EventBus;
 using dTITAN.Backend.Data.Persistence;
 using dTITAN.Backend.Data.Models.Events;
-using MongoDB.Bson;
 
 namespace dTITAN.Backend.Services.Persistence;
 

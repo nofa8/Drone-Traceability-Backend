@@ -11,8 +11,7 @@ public interface IEvent
     public object ToPayload();
 }
 
-public interface IInternalEvent : IEvent { }
-public interface ICommandEvent : IInternalEvent { }
+public interface ICommandEvent : IEvent { }
 
 public interface IPublicEvent : IEvent { }
 public interface IBroadcastEvent : IPublicEvent { }
