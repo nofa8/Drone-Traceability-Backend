@@ -4,7 +4,7 @@ namespace dTITAN.Backend.Data.Models.Commands.Enums;
 
 /**
  * XXX:
- * This looks like a info that is recieved and not sent.
+ * This looks like a info that is received and not sent.
  * Check return info of mission
  */
 [JsonConverter(typeof(JsonStringEnumConverter))]
