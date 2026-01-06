@@ -2,6 +2,8 @@
   "racing_drone": {
     "id": "RD001",
     "model": "RacerX",
+    "lat": 39.7483163,
+    "lng": -8.8103196,
     "maxSpeed": 10,
     "targetAlt": 20,
     "hdg": 0

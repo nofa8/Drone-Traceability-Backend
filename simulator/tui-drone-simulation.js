@@ -268,6 +268,8 @@ async function loadAllPresets() {
     d.maxSpeed = preset.maxSpeed ?? d.maxSpeed;
     d.targetAlt = preset.targetAlt ?? d.targetAlt;
     d.hdg = preset.hdg ?? d.hdg;
+    d.lat= preset.lat ?? d.lat;
+    d.lng= preset.lng ?? d.lng;
     drones.set(id, d);
     pushServerMessage(`Drone ${id} (${d.model}) loaded.`);
   }
