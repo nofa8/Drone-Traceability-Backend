@@ -18,7 +18,7 @@ Lightweight instructions to run the dTITAN backend locally (Docker or dotnet).
 ### Services
 
 - Backend API: <http://localhost:5101/api>
-- Backend WebSocket: <http://localhost:5101/ws>
+- Backend WebSocket: <ws://localhost:5102>
 - External WebSocket: <ws://localhost:8083>
 
 ### Database

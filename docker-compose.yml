@@ -37,7 +37,8 @@ services:
     container_name: dtitan-backend
     restart: unless-stopped
     ports:
-      - "5101:5101"
+      - "5101:5101" # API/Controllers
+      - "5102:5102" # WebSocket
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__MongoDb: "mongodb://mongodb:27017"

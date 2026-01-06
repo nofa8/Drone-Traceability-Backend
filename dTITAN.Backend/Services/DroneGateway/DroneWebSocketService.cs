@@ -37,7 +37,7 @@ public sealed class DroneWebSocketClient : BackgroundService
 
         // Append dboidsID=0 so we get broadcast data for all drones, and command access
         _uri = new Uri(connectionString + "?dboidsID=0");
-        _logger.LogInformation("Initializing WebSocketService with {_uri}", _uri);
+        _logger.LogInformation("Initializing DroneWebSocketClient with {_uri}", _uri);
 
     }
 

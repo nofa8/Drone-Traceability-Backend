@@ -86,24 +86,38 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    // HTTP API (controllers) - HTTP/2 + HTTP/1.1
+    options.ListenAnyIP(5101, listen =>
+    {
+        listen.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
+    });
+
+    // WebSocket endpoint - HTTP/1.1 only
+    options.ListenAnyIP(5102, listen =>
+    {
+        listen.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1;
+    });
+});
+
 var app = builder.Build();
 
-// Enable WebSockets
-app.UseWebSockets(new WebSocketOptions
-{
-    KeepAliveInterval = TimeSpan.FromSeconds(30)
-});
-
 // Map WebSocket endpoint
-app.Map("/ws", async context =>
+app.MapWhen(
+    context => context.Connection.LocalPort == 5102,
+    wsApp =>
 {
-    var lifetime = context.RequestServices
-        .GetRequiredService<IHostApplicationLifetime>();
+    wsApp.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 
-    var wsService = context.RequestServices.GetRequiredService<ClientWebSocketService>();
-    await wsService.HandleClientAsync(context, lifetime.ApplicationStopping);
+    wsApp.Run(async context =>
+    {
+        var lifetime = context.RequestServices.GetRequiredService<IHostApplicationLifetime>();
+
+        var wsService = context.RequestServices.GetRequiredService<ClientWebSocketService>();
+        await wsService.HandleClientAsync(context, lifetime.ApplicationStopping);
+    });
 });
-
 
 app.MapOpenApi();
 // XXX: HTTPS redirection requires proper certs.
