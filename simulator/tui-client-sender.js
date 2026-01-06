@@ -11,7 +11,7 @@ import {
   setRender
 } from "./tuiBase.js";
 
-const WS_URL = "ws://localhost:5101/ws";
+const WS_URL = "ws://localhost:5102";
 let vehicleId = "RD001";
 let ws = null;
 

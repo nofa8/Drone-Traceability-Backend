@@ -19,5 +19,19 @@
     "maxSpeed": 4,
     "targetAlt": 30,
     "hdg": 180
+  },
+  "delivery_drone": {
+    "id": "DL500",
+    "model": "DeliverIt",
+    "maxSpeed": 6,
+    "targetAlt": 40,
+    "hdg": 270
+  },
+  "inspection_drone": {
+    "id": "INSP01",
+    "model": "Inspecto",
+    "maxSpeed": 3,
+    "targetAlt": 25,
+    "hdg": 45
   }
 }
