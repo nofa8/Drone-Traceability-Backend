@@ -79,6 +79,31 @@ class Drone {
     this.gpsBiasY = 0;
 
     this.ws = new WebSocket(`${WS_URL}?dboidsID=${id}`);
+
+    this.ws.on("open", () => {
+      pushServerMessage(`WS open ${this.id}`);
+      // send initial state once connected
+      this.send();
+    });
+
+    this.ws.on("message", (data) => {
+      let text;
+      try {
+        text = typeof data === "string" ? data : data.toString();
+      } catch (e) {
+        text = String(data);
+      }
+      pushServerMessage(`${this.id}: ${text}`);
+    });
+
+    this.ws.on("close", () => {
+      pushServerMessage(`WS closed ${this.id}`);
+      this.online = false;
+    });
+
+    this.ws.on("error", (err) => {
+      pushServerMessage(`WS error ${this.id}: ${err?.message ?? err}`);
+    });
   }
 
   start() {
@@ -231,11 +256,6 @@ class Drone {
     } catch {}
   }
 }
-
-// ---------------- UI & Controls (unchanged) ----------------
-// (all your keyboard handling, rendering, and preset loading stays identical)
-// You can keep the rest of your file exactly as before
-
 
 // ---------------- Drone helpers ----------------
 function resolveTargets(input) {

@@ -134,7 +134,7 @@ setupKeyboard(async (key) => {
 
     case "7": await sendCommand("FlightCommand", { command: "pauseMission" }); break;
     case "8": await sendCommand("FlightCommand", { command: "stopMission" }); break;
-    case "9": await sendCommand("FlightCommand", { command: "resumeMission" }); break;
+    case "9": await sendCommand("FlightCommand", { command: "startMission" }); break;
 
     case "m": {
       const s = await readLine("Virtual sticks enabled (1/0): ");
