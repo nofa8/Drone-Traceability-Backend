@@ -225,6 +225,7 @@ class Drone {
       this.ws.send(
         JSON.stringify({
           id: this.id,
+          model: this.model,
           homeLocation: this.homeLocation,
           lat: this.lat,
           lng: this.lng,
