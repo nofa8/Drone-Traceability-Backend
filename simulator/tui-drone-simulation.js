@@ -16,6 +16,24 @@ import {
 const WS_URL = "ws://localhost:8083";
 const drones = new Map();
 const presets = JSON.parse(fs.readFileSync("./presets.json", "utf-8"));
+const PRESET_FIELDS = [
+  "model",
+  "lat",
+  "lng",
+  "alt",
+  "maxSpeed",
+  "maxAscendRate",
+  "targetAlt",
+  "targetLat",
+  "targetLng",
+  "hdg",
+  "batLvl",
+  "satCount",
+  "windSpeed",
+  "gpsNoiseBase",
+  "areMotorsOn",
+  "areLightsOn",
+];
 
 const DRONE_STEP_INTERVAL = 200; // ms
 const METERS_PER_DEG_LAT = 111_320;
@@ -157,10 +175,9 @@ class Drone {
 
     // -------- Altitude logic (RTH descent)
     if (this.isGoingHome && this.targetLat && this.targetLng) {
-      const distHome = Math.hypot(
-        this.targetLat - this.lat,
-        this.targetLng - this.lng
-      ) * METERS_PER_DEG_LAT;
+      const distHome =
+        Math.hypot(this.targetLat - this.lat, this.targetLng - this.lng) *
+        METERS_PER_DEG_LAT;
 
       if (distHome < 10) {
         this.targetAlt = 0;
@@ -199,8 +216,7 @@ class Drone {
     this.alt = Math.max(0, this.alt + this.velZ * dt);
 
     // -------- GPS noise model
-    const gpsAccuracy =
-      this.gpsNoiseBase * (12 / Math.max(this.satCount, 6));
+    const gpsAccuracy = this.gpsNoiseBase * (12 / Math.max(this.satCount, 6));
 
     this.gpsBiasX += (Math.random() - 0.5) * 0.02;
     this.gpsBiasY += (Math.random() - 0.5) * 0.02;
@@ -209,8 +225,7 @@ class Drone {
       ((Math.random() - 0.5) * gpsAccuracy + this.gpsBiasY) /
       METERS_PER_DEG_LAT;
     this.lng +=
-      ((Math.random() - 0.5) * gpsAccuracy + this.gpsBiasX) /
-      metersPerDegLng;
+      ((Math.random() - 0.5) * gpsAccuracy + this.gpsBiasX) / metersPerDegLng;
 
     // -------- Battery
     const motion = Math.hypot(this.velX, this.velY, this.velZ);
@@ -280,17 +295,22 @@ async function createNewDrone() {
 }
 
 async function loadAllPresets() {
-  for (const presetKey of Object.keys(presets)) {
-    const preset = presets[presetKey];
+  for (const preset of Object.values(presets)) {
     const id = preset.id ?? crypto.randomUUID().slice(0, 6);
     if (drones.has(id)) continue;
+
     const d = new Drone(id);
-    d.model = preset.model || "";
-    d.maxSpeed = preset.maxSpeed ?? d.maxSpeed;
-    d.targetAlt = preset.targetAlt ?? d.targetAlt;
-    d.hdg = preset.hdg ?? d.hdg;
-    d.lat= preset.lat ?? d.lat;
-    d.lng= preset.lng ?? d.lng;
+    for (const key of PRESET_FIELDS) {
+      if (preset[key] !== undefined) {
+        d[key] = preset[key];
+      }
+    }
+
+    // If preset defines initial position, update homeLocation too
+    if (preset.lat !== undefined && preset.lng !== undefined) {
+      d.homeLocation = { lat: preset.lat, lng: preset.lng };
+    }
+
     drones.set(id, d);
     pushServerMessage(`Drone ${id} (${d.model}) loaded.`);
   }
