@@ -213,6 +213,7 @@ class Drone {
 
     this.lat += dy / METERS_PER_DEG_LAT;
     this.lng += dx / metersPerDegLng;
+    let oldAlt = this.alt;
     this.alt = Math.max(0, this.alt + this.velZ * dt);
 
     // -------- GPS noise model
@@ -229,7 +230,12 @@ class Drone {
 
     // -------- Battery
     const motion = Math.hypot(this.velX, this.velY, this.velZ);
+
+    let oldBatLvl = this.batLvl;
     this.batLvl = Math.max(0, this.batLvl - 0.02 - motion * 0.01);
+
+   // check if values changes on the display 
+   changed = oldAlt !== this.alt || oldBatLvl !== this.batLvl;
 
     this.send();
     return changed;
